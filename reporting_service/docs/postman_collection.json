@@ -1,0 +1,283 @@
+{
+  "info": {
+    "name": "Core Banking — Reporting Service",
+    "description": "Collection Postman pour tester tous les rapports financiers",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8001" },
+    { "key": "start_date", "value": "2024-01-01" },
+    { "key": "end_date", "value": "2024-12-31" },
+    { "key": "as_of_date", "value": "2024-12-31" },
+    { "key": "agrement", "value": "IMF-BJ-2024-001" }
+  ],
+  "item": [
+    {
+      "name": "Santé",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Balance générale",
+      "item": [
+        {
+          "name": "Balance — JSON",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/trial-balance?start_date={{start_date}}&end_date={{end_date}}",
+              "query": [
+                { "key": "start_date", "value": "{{start_date}}" },
+                { "key": "end_date", "value": "{{end_date}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Balance — Excel",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/trial-balance?start_date={{start_date}}&end_date={{end_date}}&format=excel",
+              "query": [
+                { "key": "start_date", "value": "{{start_date}}" },
+                { "key": "end_date", "value": "{{end_date}}" },
+                { "key": "format", "value": "excel" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Grand livre",
+      "item": [
+        {
+          "name": "Grand livre — Caisse (571100)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/general-ledger?start_date={{start_date}}&end_date={{end_date}}&account_code=571100",
+              "query": [
+                { "key": "start_date", "value": "{{start_date}}" },
+                { "key": "end_date", "value": "{{end_date}}" },
+                { "key": "account_code", "value": "571100" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Grand livre — Crédits (251100)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/general-ledger?start_date={{start_date}}&end_date={{end_date}}&account_code=251100",
+              "query": [
+                { "key": "start_date", "value": "{{start_date}}" },
+                { "key": "end_date", "value": "{{end_date}}" },
+                { "key": "account_code", "value": "251100" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Bilan",
+      "item": [
+        {
+          "name": "Bilan — JSON",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/balance-sheet?as_of_date={{as_of_date}}",
+              "query": [{ "key": "as_of_date", "value": "{{as_of_date}}" }]
+            }
+          }
+        },
+        {
+          "name": "Bilan — PDF",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/balance-sheet?as_of_date={{as_of_date}}&format=pdf",
+              "query": [
+                { "key": "as_of_date", "value": "{{as_of_date}}" },
+                { "key": "format", "value": "pdf" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Compte de résultat",
+      "item": [
+        {
+          "name": "Résultat — JSON",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/income-statement?start_date={{start_date}}&end_date={{end_date}}",
+              "query": [
+                { "key": "start_date", "value": "{{start_date}}" },
+                { "key": "end_date", "value": "{{end_date}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Flux de trésorerie",
+      "item": [
+        {
+          "name": "Flux trésorerie",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/cash-flow?start_date={{start_date}}&end_date={{end_date}}",
+              "query": [
+                { "key": "start_date", "value": "{{start_date}}" },
+                { "key": "end_date", "value": "{{end_date}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Portefeuille crédits",
+      "item": [
+        {
+          "name": "Crédits — JSON",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/credit-portfolio?as_of_date={{as_of_date}}",
+              "query": [{ "key": "as_of_date", "value": "{{as_of_date}}" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Dépôts",
+      "item": [
+        {
+          "name": "État des dépôts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/deposits?as_of_date={{as_of_date}}&start_date={{start_date}}&end_date={{end_date}}",
+              "query": [
+                { "key": "as_of_date", "value": "{{as_of_date}}" },
+                { "key": "start_date", "value": "{{start_date}}" },
+                { "key": "end_date", "value": "{{end_date}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Dashboard KPIs",
+      "item": [
+        {
+          "name": "Dashboard — JSON",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/dashboard?as_of_date={{as_of_date}}",
+              "query": [{ "key": "as_of_date", "value": "{{as_of_date}}" }]
+            }
+          }
+        },
+        {
+          "name": "Dashboard — Excel",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/dashboard?as_of_date={{as_of_date}}&format=excel",
+              "query": [
+                { "key": "as_of_date", "value": "{{as_of_date}}" },
+                { "key": "format", "value": "excel" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. BCEAO Prudentiel",
+      "item": [
+        {
+          "name": "Ratios BCEAO — JSON",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/bceao-prudential?as_of_date={{as_of_date}}&numero_agrement={{agrement}}",
+              "query": [
+                { "key": "as_of_date", "value": "{{as_of_date}}" },
+                { "key": "numero_agrement", "value": "{{agrement}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ratios BCEAO — PDF",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/bceao-prudential?as_of_date={{as_of_date}}&numero_agrement={{agrement}}&format=pdf",
+              "query": [
+                { "key": "as_of_date", "value": "{{as_of_date}}" },
+                { "key": "numero_agrement", "value": "{{agrement}}" },
+                { "key": "format", "value": "pdf" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Journal centralisateur",
+      "item": [
+        {
+          "name": "Journal centralisateur — JSON",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/journal-centralizer?start_date={{start_date}}&end_date={{end_date}}",
+              "query": [
+                { "key": "start_date", "value": "{{start_date}}" },
+                { "key": "end_date", "value": "{{end_date}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Journal centralisateur — Excel",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/journal-centralizer?start_date={{start_date}}&end_date={{end_date}}&format=excel",
+              "query": [
+                { "key": "start_date", "value": "{{start_date}}" },
+                { "key": "end_date", "value": "{{end_date}}" },
+                { "key": "format", "value": "excel" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,217 @@
+version: "3.9"
+
+# ─── Infrastructure partagée + deux microservices ────────────────────────────
+# Lancer depuis la racine : docker compose up
+#
+# Ports exposés :
+#   accounting-service  → http://localhost:8000  (API + docs /docs)
+#   reporting-service   → http://localhost:8001  (API + docs /docs)
+#   kafka-ui            → http://localhost:8080
+#   PostgreSQL          → localhost:5432
+#   Redis (accounting)  → localhost:6379
+#   Redis (reporting)   → localhost:6380
+# ─────────────────────────────────────────────────────────────────────────────
+
+networks:
+  core-banking:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_accounting_data:
+  redis_reporting_data:
+
+services:
+
+  # ─── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: cb_postgres
+    restart: unless-stopped
+    networks: [core-banking]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: accounting_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Crée l'utilisateur reporting_ro en lecture seule au démarrage
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/01_init_db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d accounting_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  # ─── Redis — accounting (session cache, locks) ────────────────────────────
+  redis-accounting:
+    image: redis:7-alpine
+    container_name: cb_redis_accounting
+    restart: unless-stopped
+    networks: [core-banking]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_accounting_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+
+  # ─── Redis — reporting (cache rapports) ───────────────────────────────────
+  redis-reporting:
+    image: redis:7-alpine
+    container_name: cb_redis_reporting
+    restart: unless-stopped
+    networks: [core-banking]
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_reporting_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+
+  # ─── Zookeeper ──────────────────────────────────────────────────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: cb_zookeeper
+    restart: unless-stopped
+    networks: [core-banking]
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD-SHELL", "echo srvr | nc localhost 2181 | grep -q Mode"]
+      interval: 10s
+      retries: 5
+
+  # ─── Kafka ──────────────────────────────────────────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: cb_kafka
+    restart: unless-stopped
+    networks: [core-banking]
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # PLAINTEXT_HOST permet l'accès depuis l'hôte (localhost:9092)
+      # PLAINTEXT permet l'accès depuis le réseau Docker (kafka:9093)
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT_HOST://localhost:9092,PLAINTEXT://kafka:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      # Topics pré-créés avec rétention 7 jours
+      KAFKA_CREATE_TOPICS: >-
+        credit.events:1:1,
+        savings.events:1:1,
+        cash.events:1:1,
+        accounting.events:1:1
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  # ─── Kafka UI ────────────────────────────────────────────────────────────────
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: cb_kafka_ui
+    restart: unless-stopped
+    networks: [core-banking]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: core-banking
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9093
+
+  # ─── Microservice Comptabilité (port 8000) ──────────────────────────────────
+  accounting-service:
+    build:
+      context: ./accounting_service
+      dockerfile: Dockerfile
+    container_name: cb_accounting
+    restart: unless-stopped
+    networks: [core-banking]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis-accounting:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: development
+      DEBUG: "true"
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/accounting_db
+      REDIS_URL: redis://redis-accounting:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9093
+      KAFKA_TOPIC_CREDIT_EVENTS: credit.events
+      KAFKA_TOPIC_SAVINGS_EVENTS: savings.events
+      KAFKA_TOPIC_CASH_EVENTS: cash.events
+      KAFKA_TOPIC_ACCOUNTING_EVENTS: accounting.events
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-development}
+      DEFAULT_CURRENCY: XOF
+    command: >
+      sh -c "
+        alembic upgrade head &&
+        python scripts/seed_chart_of_accounts.py &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Microservice Reporting (port 8001) ─────────────────────────────────────
+  reporting-service:
+    build:
+      context: ./reporting_service
+      dockerfile: Dockerfile
+    container_name: cb_reporting
+    restart: unless-stopped
+    networks: [core-banking]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis-reporting:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      accounting-service:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+    environment:
+      ENVIRONMENT: development
+      DEBUG: "true"
+      # Connexion en lecture seule (user reporting_ro créé par init_db.sql)
+      ACCOUNTING_DB_URL: postgresql+asyncpg://reporting_ro:reporting_ro@postgres:5432/accounting_db
+      REDIS_URL: redis://redis-reporting:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9093
+      KAFKA_TOPIC_ACCOUNTING_EVENTS: accounting.events
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-development}
+      INSTITUTION_NAME: ${INSTITUTION_NAME:-Ma Banque / IMF}
+      INSTITUTION_COUNTRY: BJ
+    command: >
+      uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

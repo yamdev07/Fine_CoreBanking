@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+
+  # ─── PostgreSQL (partagée — lecture seule depuis reporting) ───────────────
+  # Le reporting-service se connecte à la même DB que accounting-service
+  # mais avec un user en lecture seule.
+  # Si vous lancez le reporting seul, décommentez ce bloc :
+  #
+  # postgres:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgres
+  #     POSTGRES_DB: accounting_db
+  #   ports:
+  #     - "5432:5432"
+
+  # ─── Redis (cache des rapports) ───────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: reporting_redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"   # Port différent pour éviter le conflit avec accounting
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+
+  # ─── Microservice Reporting ───────────────────────────────────────────────
+  reporting-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: reporting_service
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "8001:8001"   # Port différent de accounting (8000)
+    environment:
+      ENVIRONMENT: development
+      DEBUG: "true"
+      # Connexion en lecture seule sur la DB comptabilité
+      ACCOUNTING_DB_URL: postgresql+asyncpg://reporting_ro:reporting_ro@postgres:5432/accounting_db
+      REDIS_URL: redis://redis:6379/0
+      # Kafka : pointe vers le broker de l'accounting service (réseau externe)
+      # En standalone, override avec KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}
+      KAFKA_TOPIC_ACCOUNTING_EVENTS: accounting.events
+      INSTITUTION_NAME: "Ma Banque / IMF"
+      INSTITUTION_COUNTRY: "BJ"
+    command: >
+      uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
