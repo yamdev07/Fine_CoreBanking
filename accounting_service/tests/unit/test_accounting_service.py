@@ -431,7 +431,7 @@ class TestReverseEntry:
         )
         entry = await svc.create_entry(data, created_by="user")
         await svc.post_entry(entry.id, posted_by="supervisor")
-        await svc.reverse_entry(entry.id, reversed_by="supervisor")
+        await svc.reverse_entry(entry.id, reversed_by="supervisor", reversal_date=date(2024, 1, 15))
 
         refreshed = await session.get(type(entry), entry.id)
         assert refreshed.status == EntryStatus.REVERSED
