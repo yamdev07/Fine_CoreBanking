@@ -11,8 +11,8 @@ ENV POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_IN_PROJECT=true \
     POETRY_CACHE_DIR=/tmp/poetry_cache
 
-COPY pyproject.toml poetry.lock* ./
-RUN poetry install --no-root --only main && rm -rf $POETRY_CACHE_DIR
+COPY pyproject.toml ./
+RUN poetry lock && poetry install --no-root --only main && rm -rf $POETRY_CACHE_DIR
 
 COPY . .
 

@@ -1,13 +1,19 @@
+import { getToken } from "@/lib/auth";
+
 const BASE = process.env.NEXT_PUBLIC_ACCOUNTING_URL ?? "http://localhost:8000";
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
+  const token = getToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...((init?.headers ?? {}) as Record<string, string>),
+  };
+  const res = await fetch(`${BASE}${path}`, { ...init, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message ?? res.statusText);
+    const msg = err?.detail?.message ?? err?.message ?? res.statusText;
+    throw new Error(msg);
   }
   return res.json();
 }
@@ -118,3 +124,36 @@ export const postJournalEntry = (id: string) =>
 
 export const cancelJournalEntry = (id: string) =>
   req<JournalEntry>(`/api/v1/journals/entries/${id}/cancel`, { method: "POST" });
+
+// ── Utilisateurs (Admin) ──────────────────────────────────────────────────────
+
+export interface UserRecord {
+  id: string;
+  username: string;
+  full_name: string;
+  email: string;
+  role: "ADMIN" | "ACCOUNTANT" | "AUDITOR";
+  is_active: boolean;
+  created_at: string;
+  last_login_at: string | null;
+}
+
+export const getUsers = () => req<UserRecord[]>("/api/v1/users");
+
+export const createUser = (data: {
+  username: string; full_name: string; email: string;
+  password: string; role: string;
+}) => req<UserRecord>("/api/v1/users", { method: "POST", body: JSON.stringify(data) });
+
+export const updateUser = (id: string, data: Partial<{
+  full_name: string; email: string; role: string;
+  is_active: boolean; password: string;
+}>) => req<UserRecord>(`/api/v1/users/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+
+export const deactivateUser = (id: string) => {
+  const token = getToken();
+  return fetch(`${BASE}/api/v1/users/${id}`, {
+    method: "DELETE",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};

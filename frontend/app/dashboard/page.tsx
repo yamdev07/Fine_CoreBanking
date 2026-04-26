@@ -4,30 +4,64 @@ import { useEffect, useState } from "react";
 import Header from "@/components/layout/Header";
 import { PageLoader, ErrorBox } from "@/components/ui/Spinner";
 import { getDashboard, type DashboardReport, type KPIValue } from "@/lib/api/reporting";
-import { formatCurrency, formatPct, today, startOfYear } from "@/lib/utils";
+import { formatCurrency, formatPct, today } from "@/lib/utils";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  LineChart, Line, CartesianGrid, Legend,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Cell,
 } from "recharts";
-import { TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle2 } from "lucide-react";
+import {
+  TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle2,
+  Landmark, PiggyBank, Wallet, Activity,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
-function KPICard({ kpi, isCurrency = true }: { kpi: KPIValue; isCurrency?: boolean }) {
+const KPI_ICONS = [Landmark, PiggyBank, Wallet, Activity];
+
+function KPICard({
+  kpi,
+  isCurrency = true,
+  icon: Icon,
+  accent = "brand",
+}: {
+  kpi: KPIValue;
+  isCurrency?: boolean;
+  icon?: React.ComponentType<{ className?: string }>;
+  accent?: "brand" | "emerald" | "violet" | "amber";
+}) {
   const value = isCurrency ? formatCurrency(kpi.value) : formatPct(kpi.value);
   const TrendIcon =
     kpi.trend === "UP" ? TrendingUp :
     kpi.trend === "DOWN" ? TrendingDown : Minus;
-  const trendColor =
-    kpi.trend === "UP" ? "text-emerald-600" :
-    kpi.trend === "DOWN" ? "text-red-500" : "text-slate-400";
+  const isUp   = kpi.trend === "UP";
+  const isDown = kpi.trend === "DOWN";
+
+  const accentMap = {
+    brand:   { bg: "bg-brand-50",   icon: "text-brand-600",   ring: "ring-brand-100" },
+    emerald: { bg: "bg-emerald-50", icon: "text-emerald-600", ring: "ring-emerald-100" },
+    violet:  { bg: "bg-violet-50",  icon: "text-violet-600",  ring: "ring-violet-100" },
+    amber:   { bg: "bg-amber-50",   icon: "text-amber-600",   ring: "ring-amber-100" },
+  };
+  const a = accentMap[accent];
 
   return (
-    <div className="card p-5">
-      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{kpi.label}</p>
-      <p className="text-2xl font-bold text-slate-900 mt-2">{value}</p>
+    <div className="card p-5 flex flex-col gap-3 hover:shadow-card-md transition-shadow">
+      <div className="flex items-start justify-between">
+        <p className="kpi-label">{kpi.label}</p>
+        {Icon && (
+          <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center ring-1", a.bg, a.ring)}>
+            <Icon className={cn("w-5 h-5", a.icon)} />
+          </div>
+        )}
+      </div>
+      <p className="kpi-value">{value}</p>
       {kpi.variation_pct !== null && (
-        <div className={`flex items-center gap-1 mt-2 text-xs ${trendColor}`}>
+        <div className={cn(
+          "flex items-center gap-1 text-xs font-medium",
+          isUp && "kpi-change-up",
+          isDown && "kpi-change-down",
+          !isUp && !isDown && "text-slate-400",
+        )}>
           <TrendIcon className="w-3.5 h-3.5" />
-          <span>{formatPct(kpi.variation_pct)} vs N-1</span>
+          <span>{formatPct(Math.abs(kpi.variation_pct))} vs N-1</span>
         </div>
       )}
     </div>
@@ -36,21 +70,28 @@ function KPICard({ kpi, isCurrency = true }: { kpi: KPIValue; isCurrency?: boole
 
 function RatioCard({ kpi, good = "high" }: { kpi: KPIValue; good?: "high" | "low" }) {
   const v = parseFloat(String(kpi.value));
-  const isGood = good === "high" ? v < 10 : v > 0;
+  const isAlert = good === "high" ? v > 5 : v < 75;
   return (
-    <div className="card p-4 flex items-center gap-4">
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isGood ? "bg-red-50" : "bg-emerald-50"}`}>
-        {isGood
-          ? <AlertTriangle className="w-5 h-5 text-red-500" />
+    <div className="card p-4 flex items-center gap-4 hover:shadow-card-md transition-shadow">
+      <div className={cn(
+        "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+        isAlert ? "bg-rose-50 ring-1 ring-rose-100" : "bg-emerald-50 ring-1 ring-emerald-100"
+      )}>
+        {isAlert
+          ? <AlertTriangle className="w-5 h-5 text-rose-500" />
           : <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
       </div>
       <div>
-        <p className="text-xs text-slate-500">{kpi.label}</p>
-        <p className="text-lg font-bold text-slate-900">{formatPct(kpi.value)}</p>
+        <p className="text-xs text-slate-500 font-medium">{kpi.label}</p>
+        <p className={cn("text-xl font-bold mt-0.5", isAlert ? "text-rose-600" : "text-emerald-700")}>
+          {formatPct(kpi.value)}
+        </p>
       </div>
     </div>
   );
 }
+
+const BAR_COLORS = ["#4F46E5", "#10B981"];
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardReport | null>(null);
@@ -60,9 +101,7 @@ export default function DashboardPage() {
   useEffect(() => {
     setError("");
     setData(null);
-    getDashboard(date)
-      .then(setData)
-      .catch((e) => setError(e.message));
+    getDashboard(date).then(setData).catch((e) => setError(e.message));
   }, [date]);
 
   const barData = data ? [
@@ -73,75 +112,77 @@ export default function DashboardPage() {
     },
   ] : [];
 
+  const kpiAccents = ["brand", "emerald", "violet", "amber"] as const;
+
   return (
     <>
-      <Header title="Tableau de bord" subtitle="Vue exécutive en temps réel" />
-      <div className="flex-1 p-6 space-y-6">
-
-        {/* Date picker */}
-        <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-slate-600">Date d'arrêté :</label>
+      <Header
+        title="Tableau de bord"
+        subtitle="Vue exécutive en temps réel"
+        actions={
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="input w-44"
+            className="input w-40 text-xs"
           />
-        </div>
-
+        }
+      />
+      <div className="flex-1 p-6 space-y-6">
         {error && <ErrorBox message={error} />}
         {!data && !error && <PageLoader />}
 
         {data && (
           <>
-            {/* KPIs financiers */}
+            {/* KPIs */}
             <div>
-              <h2 className="section-title">Indicateurs financiers</h2>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Indicateurs financiers</p>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <KPICard kpi={data.kpi_encours_credits} />
-                <KPICard kpi={data.kpi_encours_epargne} />
-                <KPICard kpi={data.kpi_tresorerie} />
-                <KPICard kpi={data.kpi_produit_net_bancaire} />
+                {[
+                  { kpi: data.kpi_encours_credits,    icon: Landmark,  acc: "brand" },
+                  { kpi: data.kpi_encours_epargne,    icon: PiggyBank, acc: "emerald" },
+                  { kpi: data.kpi_tresorerie,         icon: Wallet,    acc: "violet" },
+                  { kpi: data.kpi_produit_net_bancaire, icon: Activity, acc: "amber" },
+                ].map(({ kpi, icon, acc }, i) => (
+                  <KPICard key={i} kpi={kpi} icon={icon} accent={acc as "brand" | "emerald" | "violet" | "amber"} />
+                ))}
               </div>
             </div>
 
-            {/* Résultat + ratios */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-              {/* Résultat net */}
-              <div className="card p-5">
-                <h2 className="section-title">Résultat net & Rentabilité</h2>
+            {/* Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+              {/* Résultat */}
+              <div className="card p-5 lg:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4">Rentabilité</p>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-slate-500">Résultat net</p>
-                    <p className="text-xl font-bold mt-1">{formatCurrency(data.kpi_resultat_net.value)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">ROE</p>
-                    <p className="text-xl font-bold mt-1">{formatPct(data.kpi_roe.value)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">ROA</p>
-                    <p className="text-xl font-bold mt-1">{formatPct(data.kpi_roa.value)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Liquidité</p>
-                    <p className="text-xl font-bold mt-1">{formatPct(data.kpi_ratio_liquidite.value)}</p>
-                  </div>
+                  {[
+                    { label: "Résultat net", value: formatCurrency(data.kpi_resultat_net.value) },
+                    { label: "ROE",          value: formatPct(data.kpi_roe.value) },
+                    { label: "ROA",          value: formatPct(data.kpi_roa.value) },
+                    { label: "Liquidité",    value: formatPct(data.kpi_ratio_liquidite.value) },
+                  ].map((item) => (
+                    <div key={item.label} className="bg-slate-50 rounded-xl p-3.5">
+                      <p className="text-xs text-slate-500 font-medium">{item.label}</p>
+                      <p className="text-base font-bold text-slate-900 mt-1">{item.value}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Crédits vs Dépôts */}
-              <div className="card p-5">
-                <h2 className="section-title">Crédits vs Dépôts (M XOF)</h2>
-                <ResponsiveContainer width="100%" height={160}>
-                  <BarChart data={barData} barGap={8}>
+              {/* Bar chart */}
+              <div className="card p-5 lg:col-span-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4">Crédits vs Dépôts (M XOF)</p>
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={barData} barCategoryGap="50%" barGap={6}>
                     <XAxis dataKey="name" hide />
-                    <YAxis tickFormatter={(v) => `${v}M`} width={50} tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v: number) => `${v.toFixed(1)} M XOF`} />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Bar dataKey="Crédits" fill="#2563eb" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Épargne" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <YAxis tickFormatter={(v) => `${v}M`} width={48} tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
+                    <Tooltip
+                      formatter={(v: number) => `${v.toFixed(1)} M XOF`}
+                      contentStyle={{ borderRadius: 12, border: "1px solid #E2E8F0", fontSize: 12 }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                    <Bar dataKey="Crédits" fill="#4F46E5" radius={[6, 6, 0, 0]} maxBarSize={80} />
+                    <Bar dataKey="Épargne" fill="#10B981" radius={[6, 6, 0, 0]} maxBarSize={80} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -149,11 +190,11 @@ export default function DashboardPage() {
 
             {/* Qualité du portefeuille */}
             <div>
-              <h2 className="section-title">Qualité du portefeuille</h2>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Qualité du portefeuille</p>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <RatioCard kpi={data.kpi_taux_impayes} good="high" />
-                <RatioCard kpi={data.kpi_taux_couverture} good="low" />
-                <RatioCard kpi={data.kpi_ratio_liquidite} good="low" />
+                <RatioCard kpi={data.kpi_taux_impayes}        good="high" />
+                <RatioCard kpi={data.kpi_taux_couverture}     good="low" />
+                <RatioCard kpi={data.kpi_ratio_liquidite}     good="low" />
                 <RatioCard kpi={data.kpi_ratio_credits_depots} good="low" />
               </div>
             </div>

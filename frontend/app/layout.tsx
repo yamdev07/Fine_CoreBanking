@@ -1,20 +1,20 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Sidebar from "@/components/layout/Sidebar";
+import { AuthProvider } from "@/context/auth";
+import AppShell from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
   title: "Core Banking — Tableau de bord",
-  description: "Système de gestion bancaire SYSCOHADA",
+  description: "Système de gestion comptable SYSCOHADA/BCEAO",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr">
       <body>
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <main className="flex-1 flex flex-col overflow-auto">{children}</main>
-        </div>
+        <AuthProvider>
+          <AppShell>{children}</AppShell>
+        </AuthProvider>
       </body>
     </html>
   );

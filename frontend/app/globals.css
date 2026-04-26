@@ -1,29 +1,103 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  html { @apply antialiased; }
-  body { @apply bg-slate-50 text-slate-900; }
+  html {
+    @apply antialiased scroll-smooth;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  body {
+    @apply bg-slate-50 text-slate-900 font-sans;
+  }
+  * { @apply border-slate-200; }
 }
 
 @layer components {
-  .card { @apply bg-white rounded-xl border border-slate-200 shadow-sm; }
-  .btn-primary { @apply inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 active:bg-brand-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed; }
-  .btn-secondary { @apply inline-flex items-center gap-2 px-4 py-2 bg-white text-slate-700 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-50 active:bg-slate-100 transition-colors disabled:opacity-50; }
-  .btn-ghost { @apply inline-flex items-center gap-2 px-3 py-1.5 text-slate-600 text-sm rounded-lg hover:bg-slate-100 transition-colors; }
-  .input { @apply w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent placeholder:text-slate-400; }
-  .label { @apply block text-xs font-medium text-slate-600 mb-1; }
-  .badge-green { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700; }
-  .badge-red { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700; }
-  .badge-yellow { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700; }
-  .badge-blue { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700; }
-  .badge-gray { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600; }
-  .th { @apply px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider; }
+  /* ── Cards ─────────────────────────────────────────────────────── */
+  .card {
+    @apply bg-white rounded-2xl border border-slate-100 shadow-card;
+  }
+  .card-md {
+    @apply bg-white rounded-2xl border border-slate-100 shadow-card-md;
+  }
+
+  /* ── Buttons ────────────────────────────────────────────────────── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed select-none;
+  }
+  .btn-primary {
+    @apply btn px-4 py-2 text-sm bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800 focus-visible:ring-brand-500 shadow-sm;
+  }
+  .btn-secondary {
+    @apply btn px-4 py-2 text-sm bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 active:bg-slate-100 focus-visible:ring-brand-500 shadow-sm;
+  }
+  .btn-danger {
+    @apply btn px-4 py-2 text-sm bg-rose-600 text-white hover:bg-rose-700 active:bg-rose-800 focus-visible:ring-rose-500 shadow-sm;
+  }
+  .btn-ghost {
+    @apply btn px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-brand-500;
+  }
+  .btn-icon {
+    @apply btn w-8 h-8 text-slate-500 hover:bg-slate-100 hover:text-slate-700 rounded-lg;
+  }
+
+  /* ── Forms ──────────────────────────────────────────────────────── */
+  .input {
+    @apply w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl
+           focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500
+           placeholder:text-slate-400 transition-shadow;
+  }
+  .input-error {
+    @apply border-rose-400 focus:ring-rose-500/30 focus:border-rose-500;
+  }
+  .label {
+    @apply block text-xs font-semibold text-slate-600 mb-1.5 tracking-wide uppercase;
+  }
+  .form-group { @apply flex flex-col gap-1; }
+
+  /* ── Badges ─────────────────────────────────────────────────────── */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+  .badge-green   { @apply badge bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200; }
+  .badge-red     { @apply badge bg-rose-50 text-rose-700 ring-1 ring-rose-200; }
+  .badge-yellow  { @apply badge bg-amber-50 text-amber-700 ring-1 ring-amber-200; }
+  .badge-blue    { @apply badge bg-brand-50 text-brand-700 ring-1 ring-brand-200; }
+  .badge-gray    { @apply badge bg-slate-100 text-slate-600 ring-1 ring-slate-200; }
+  .badge-purple  { @apply badge bg-violet-50 text-violet-700 ring-1 ring-violet-200; }
+
+  /* ── Tables ─────────────────────────────────────────────────────── */
+  .table-wrap { @apply overflow-x-auto rounded-xl border border-slate-100; }
+  .th {
+    @apply px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50/80;
+  }
+  .th-right { @apply th text-right; }
   .td { @apply px-4 py-3 text-sm text-slate-700; }
-  .td-num { @apply px-4 py-3 text-sm text-slate-700 text-right font-mono; }
-  .tr-hover { @apply hover:bg-slate-50 transition-colors; }
-  .section-title { @apply text-lg font-semibold text-slate-900 mb-4; }
-  .page-title { @apply text-2xl font-bold text-slate-900; }
-  .page-subtitle { @apply text-sm text-slate-500 mt-1; }
+  .td-num { @apply px-4 py-3 text-sm text-slate-800 text-right font-mono tabular-nums; }
+  .td-num-red  { @apply td-num text-rose-600; }
+  .td-num-green { @apply td-num text-emerald-600; }
+  .tr-hover { @apply border-b border-slate-50 hover:bg-brand-50/30 transition-colors; }
+  .tr-total { @apply bg-slate-50 font-semibold border-t-2 border-slate-200; }
+
+  /* ── Typography ─────────────────────────────────────────────────── */
+  .page-header { @apply mb-6; }
+  .page-title { @apply text-2xl font-bold text-slate-900 tracking-tight; }
+  .page-subtitle { @apply text-sm text-slate-500 mt-0.5; }
+  .section-title { @apply text-base font-semibold text-slate-900; }
+
+  /* ── KPI Cards ──────────────────────────────────────────────────── */
+  .kpi-card { @apply card p-5 flex flex-col gap-3; }
+  .kpi-value { @apply text-2xl font-bold text-slate-900 tabular-nums tracking-tight; }
+  .kpi-label { @apply text-xs font-semibold uppercase tracking-wider text-slate-500; }
+  .kpi-change-up   { @apply text-xs font-medium text-emerald-600 flex items-center gap-0.5; }
+  .kpi-change-down { @apply text-xs font-medium text-rose-600 flex items-center gap-0.5; }
+
+  /* ── Dividers ───────────────────────────────────────────────────── */
+  .divider { @apply border-t border-slate-100 my-4; }
+
+  /* ── Empty states ───────────────────────────────────────────────── */
+  .empty { @apply text-center py-16 text-slate-400 text-sm; }
 }

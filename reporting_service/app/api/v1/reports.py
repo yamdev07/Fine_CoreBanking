@@ -10,6 +10,7 @@ from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.security import get_current_principal
 from app.db.session import get_session
 from app.schemas.reports import (
     BilanReport, BceaoReport, CompteDeResultatReport,
@@ -20,7 +21,11 @@ from app.schemas.reports import (
 from app.services.reporting import ReportingService
 from app.utils.cache import get_cached, make_cache_key, set_cached
 
-router = APIRouter(prefix="/reports", tags=["Rapports financiers"])
+router = APIRouter(
+    prefix="/reports",
+    tags=["Rapports financiers"],
+    dependencies=[Depends(get_current_principal)],
+)
 
 
 def get_service(session: AsyncSession = Depends(get_session)) -> ReportingService:

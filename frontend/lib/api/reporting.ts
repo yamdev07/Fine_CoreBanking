@@ -1,16 +1,26 @@
+import { getToken } from "@/lib/auth";
+
 const BASE = process.env.NEXT_PUBLIC_REPORTING_URL ?? "http://localhost:8001";
 
 async function req<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`);
+  const token = getToken();
+  const headers: Record<string, string> = token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
+  const res = await fetch(`${BASE}${path}`, { headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message ?? res.statusText);
+    const msg = err?.detail?.message ?? err?.message ?? res.statusText;
+    throw new Error(msg);
   }
   return res.json();
 }
 
 export function exportUrl(path: string, format: "pdf" | "excel"): string {
-  return `${BASE}${path}&format=${format}`;
+  const token = getToken();
+  const sep = path.includes("?") ? "&" : "?";
+  const tokenParam = token ? `&_token=${encodeURIComponent(token)}` : "";
+  return `${BASE}${path}${sep}format=${format}${tokenParam}`;
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────

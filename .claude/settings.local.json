@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(docker compose *)",
-      "Bash(docker exec *)"
+      "Bash(docker exec *)",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/login -H \"Content-Type: application/json\" -d '{\"username\":\"admin\",\"password\":\"Admin1234!\"}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(docker system *)",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/login -H \"Content-Type: application/json\" -d \"{\\\\\"username\\\\\":\\\\\"admin\\\\\",\\\\\"password\\\\\":\\\\\"Admin1234!\\\\\"}\")"
     ]
   }
 }
