@@ -18,17 +18,14 @@ depends_on = None
 def upgrade() -> None:
     bind = op.get_bind()
     inspector = sa_inspect(bind)
-    existing_tables = inspector.get_table_names()
 
-    if "users" in existing_tables:
-        # Table already created by a previous create_all — nothing to do.
+    if "users" in inspector.get_table_names():
+        # Table was already created by a previous create_all — nothing to do.
         return
 
-    # Ensure enum type exists (may have been created by create_all)
-    existing_enums = {e["name"] for e in inspector.get_enums()}
-    if "userrole" not in existing_enums:
-        op.execute("CREATE TYPE userrole AS ENUM ('ADMIN', 'ACCOUNTANT', 'AUDITOR')")
-
+    # Let op.create_table own the full lifecycle (type + table).
+    # Do NOT manually CREATE TYPE here — SQLAlchemy fires before_create which
+    # would emit a second CREATE TYPE and raise DuplicateObjectError.
     op.create_table(
         "users",
         sa.Column("id", postgresql.UUID(as_uuid=False), nullable=False),
@@ -38,7 +35,7 @@ def upgrade() -> None:
         sa.Column("hashed_password", sa.String(128), nullable=False),
         sa.Column(
             "role",
-            sa.Enum("ADMIN", "ACCOUNTANT", "AUDITOR", name="userrole", create_type=False),
+            sa.Enum("ADMIN", "ACCOUNTANT", "AUDITOR", name="userrole"),
             nullable=False,
             server_default="ACCOUNTANT",
         ),
