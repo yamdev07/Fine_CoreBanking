@@ -55,7 +55,7 @@ async def list_accounts(
     svc: AccountService = Depends(get_account_service),
 ):
     """Liste les comptes avec filtres et pagination. Rôles : tous."""
-    items, total = await svc.repo.list_with_filters(
+    items, total = await svc.list(
         account_class=account_class,
         is_active=is_active,
         is_leaf=is_leaf,

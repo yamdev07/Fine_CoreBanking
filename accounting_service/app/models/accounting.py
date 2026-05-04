@@ -22,7 +22,7 @@ from sqlalchemy import (
     ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Uuid as UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -292,6 +292,11 @@ class JournalEntry(Base):
     source_entry: Mapped["JournalEntry | None"] = relationship(
         "JournalEntry", remote_side="JournalEntry.id"
     )
+
+    @property
+    def journal_code(self) -> str | None:
+        j = self.__dict__.get("journal")
+        return j.code if j else None
 
     __table_args__ = (
         UniqueConstraint("entry_number", name="uq_entry_number"),

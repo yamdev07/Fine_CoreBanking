@@ -16,14 +16,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
-    AccountAlreadyExistsError, AccountHasChildrenError, AccountNotActiveError,
-    FiscalYearClosedError, JournalEntryAlreadyPostedError,
+    AccountAlreadyExistsError, AccountHasBalanceError, AccountHasChildrenError,
+    AccountNotActiveError, FiscalYearClosedError, JournalEntryAlreadyPostedError,
     JournalEntryAlreadyReversedError, JournalEntryImbalancedError,
     JournalEntryMinimumLinesError, LetteringImbalancedError,
     LineAlreadyLetteredError, PeriodClosedError, PeriodNotFoundError,
 )
 from app.models.accounting import (
-    AccountNature, AccountPlan, AccountingPeriod, EntryStatus,
+    AccountClass, AccountNature, AccountPlan, AccountingPeriod, EntryStatus,
     FiscalYear, FiscalYearStatus, Journal, JournalCode, JournalEntry,
     JournalLine, PeriodStatus,
 )
@@ -146,6 +146,25 @@ class AccountService:
         account = await self.repo.get_by_id(account_id)
         updates = data.model_dump(exclude_none=True)
         return await self.repo.update(account, updates)
+
+    async def list(
+        self,
+        *,
+        account_class: str | None = None,
+        is_active: bool | None = None,
+        is_leaf: bool | None = None,
+        search: str | None = None,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> tuple[list[AccountPlan], int]:
+        return await self.repo.list_with_filters(
+            account_class=account_class,
+            is_active=is_active,
+            is_leaf=is_leaf,
+            search=search,
+            offset=offset,
+            limit=limit,
+        )
 
     async def deactivate(self, account_id: str) -> AccountPlan:
         from datetime import date as date_cls
@@ -480,7 +499,7 @@ class ReportService:
             lines.append({
                 "account_code": row["account_code"],
                 "account_name": row["account_name"],
-                "account_class": row["account_class"],
+                "account_class": AccountClass[row["account_class"]],
                 "account_type": row["account_type"],
                 "opening_debit": Decimal("0"),
                 "opening_credit": Decimal("0"),
