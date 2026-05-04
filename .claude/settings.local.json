@@ -6,7 +6,10 @@
       "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/login -H \"Content-Type: application/json\" -d '{\"username\":\"admin\",\"password\":\"Admin1234!\"}')",
       "Bash(python3 -m json.tool)",
       "Bash(docker system *)",
-      "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/login -H \"Content-Type: application/json\" -d \"{\\\\\"username\\\\\":\\\\\"admin\\\\\",\\\\\"password\\\\\":\\\\\"Admin1234!\\\\\"}\")"
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/login -H \"Content-Type: application/json\" -d \"{\\\\\"username\\\\\":\\\\\"admin\\\\\",\\\\\"password\\\\\":\\\\\"Admin1234!\\\\\"}\")",
+      "Bash(docker-compose ps *)",
+      "PowerShell(Get-Content \"C:\\\\Users\\\\HPELIT~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-HP-ELITEBOOK-Desktop-dev-core-banking\\\\91afa8ee-0d89-4396-b03b-2d873a3e9cf4\\\\tasks\\\\bw5j074wi.output\" -Wait -Tail 60)",
+      "PowerShell(docker exec cb_accounting python -m pytest tests/ --tb=short -q 2>&1)"
     ]
   }
 }

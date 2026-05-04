@@ -220,12 +220,7 @@ services:
 
   # ─── Frontend Next.js (port 3000) ────────────────────────────────────────────
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_ACCOUNTING_URL: http://localhost:8000
-        NEXT_PUBLIC_REPORTING_URL: http://localhost:8001
+    image: core-banking-frontend:latest
     container_name: cb_frontend
     restart: unless-stopped
     networks: [core-banking]
