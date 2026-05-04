@@ -29,13 +29,13 @@ export interface FiscalYear {
   created_at: string;
 }
 
-export const getFiscalYears = () => req<FiscalYear[]>("/api/v1/journals/fiscal-years");
+export const getFiscalYears = () => req<FiscalYear[]>("/api/v1/fiscal-years/");
 
 export const createFiscalYear = (data: { name: string; start_date: string; end_date: string }) =>
-  req<FiscalYear>("/api/v1/journals/fiscal-years", { method: "POST", body: JSON.stringify(data) });
+  req<FiscalYear>("/api/v1/fiscal-years/", { method: "POST", body: JSON.stringify(data) });
 
 export const closeFiscalYear = (id: string) =>
-  req<FiscalYear>(`/api/v1/journals/fiscal-years/${id}/close`, { method: "POST" });
+  req<FiscalYear>(`/api/v1/fiscal-years/${id}/close`, { method: "POST" });
 
 // ── Plan de comptes ───────────────────────────────────────────────────────────
 
@@ -70,6 +70,8 @@ export interface Journal {
 
 export const getJournals = () => req<Journal[]>("/api/v1/journals/");
 
+export const getJournalById = (id: string) => req<Journal>(`/api/v1/journals/${id}`);
+
 // ── Écritures comptables ──────────────────────────────────────────────────────
 
 export interface JournalLine {
@@ -82,8 +84,7 @@ export interface JournalLine {
 }
 
 export interface JournalEntryCreate {
-  journal_id?: string;
-  journal_code?: string;
+  journal_id: string;
   entry_date: string;
   value_date?: string;
   description: string;
@@ -94,36 +95,40 @@ export interface JournalEntryCreate {
 export interface JournalEntry {
   id: string;
   entry_number: string;
-  journal_code: string;
+  journal_id: string;
+  journal_code: string | null;
   entry_date: string;
   description: string;
   reference?: string;
-  status: "DRAFT" | "POSTED" | "CANCELLED";
-  total_debit: number;
-  total_credit: number;
+  status: "DRAFT" | "POSTED" | "REVERSED";
+  total_debit: string;
+  total_credit: string;
   created_at: string;
+  lines: JournalLine[];
 }
 
 export const getJournalEntries = (params?: {
+  period_id?: string;
   status?: string;
   page?: number;
   size?: number;
 }) => {
   const qs = new URLSearchParams();
+  if (params?.period_id) qs.set("period_id", params.period_id);
   if (params?.status) qs.set("status", params.status);
   qs.set("page", String(params?.page ?? 1));
   qs.set("size", String(params?.size ?? 50));
-  return req<{ items: JournalEntry[]; total: number; pages: number }>(`/api/v1/journals/entries?${qs}`);
+  return req<{ items: JournalEntry[]; total: number; pages: number }>(`/api/v1/journal-entries/?${qs}`);
 };
 
 export const createJournalEntry = (data: JournalEntryCreate) =>
-  req<JournalEntry>("/api/v1/journals/entries", { method: "POST", body: JSON.stringify(data) });
+  req<JournalEntry>("/api/v1/journal-entries/", { method: "POST", body: JSON.stringify(data) });
 
 export const postJournalEntry = (id: string) =>
-  req<JournalEntry>(`/api/v1/journals/entries/${id}/post`, { method: "POST" });
+  req<JournalEntry>(`/api/v1/journal-entries/${id}/post`, { method: "POST" });
 
-export const cancelJournalEntry = (id: string) =>
-  req<JournalEntry>(`/api/v1/journals/entries/${id}/cancel`, { method: "POST" });
+export const reverseJournalEntry = (id: string, reversal_date: string) =>
+  req<JournalEntry>(`/api/v1/journal-entries/${id}/reverse?reversal_date=${reversal_date}`, { method: "POST" });
 
 // ── Utilisateurs (Admin) ──────────────────────────────────────────────────────
 
