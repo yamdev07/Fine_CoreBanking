@@ -5,8 +5,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, DateTime, Enum, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.accounting import Base
@@ -26,7 +25,7 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=_new_uuid
+        Uuid(as_uuid=False), primary_key=True, default=_new_uuid
     )
     username: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(128), nullable=False)

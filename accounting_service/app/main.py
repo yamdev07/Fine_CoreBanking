@@ -13,7 +13,8 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
-from app.api.v1 import accounts, auth, journals, reports, users
+from app.api.v1 import accounts, auth, fiscal_years, journals, reports, users
+from app.api.v1.journals import journals_router
 from app.core.audit import AuditMiddleware
 from app.core.config import settings
 from app.core.exceptions import AccountingBaseError
@@ -137,7 +138,9 @@ API_PREFIX = "/api/v1"
 
 app.include_router(auth.router, prefix=API_PREFIX)
 app.include_router(users.router, prefix=API_PREFIX)
+app.include_router(fiscal_years.router, prefix=API_PREFIX)
 app.include_router(accounts.router, prefix=API_PREFIX)
+app.include_router(journals_router, prefix=API_PREFIX)
 app.include_router(journals.router, prefix=API_PREFIX)
 app.include_router(reports.router, prefix=API_PREFIX)
 

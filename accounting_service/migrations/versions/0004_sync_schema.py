@@ -47,7 +47,7 @@ def upgrade() -> None:
         )
 
     # ── 2. journal_lines FK: drop CASCADE, recreate without ondelete ─────────
-    op.drop_constraint("journal_lines_entry_id_fkey", "journal_lines", type_="foreignkey")
+    op.execute("ALTER TABLE journal_lines DROP CONSTRAINT IF EXISTS journal_lines_entry_id_fkey")
     op.create_foreign_key(
         "journal_lines_entry_id_fkey",
         "journal_lines", "journal_entries",
@@ -62,19 +62,25 @@ def upgrade() -> None:
     op.alter_column("users", "hashed_password",
                     existing_type=sa.String(128), type_=sa.String(255), nullable=False)
 
-    # ── 4. users: rename enum type userrole → user_role_enum ─────────────────
-    op.execute("ALTER TYPE userrole RENAME TO user_role_enum")
+    # ── 4. users: rename enum type userrole → user_role_enum (idempotent) ───
+    op.execute("""
+        DO $$ BEGIN
+            IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'userrole') THEN
+                ALTER TYPE userrole RENAME TO user_role_enum;
+            END IF;
+        END $$
+    """)
 
     # ── 5. users: replace separate unique constraints with unique indexes ──────
-    op.drop_constraint("uq_users_username", "users", type_="unique")
-    op.drop_constraint("uq_users_email", "users", type_="unique")
-    op.drop_index("ix_users_username", table_name="users")
-    op.drop_index("ix_users_email", table_name="users")
-    op.create_index("ix_users_username", "users", ["username"], unique=True)
-    op.create_index("ix_users_email", "users", ["email"], unique=True)
+    op.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS uq_users_username")
+    op.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS uq_users_email")
+    op.execute("DROP INDEX IF EXISTS ix_users_username")
+    op.execute("DROP INDEX IF EXISTS ix_users_email")
+    op.execute("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_username ON users (username)")
+    op.execute("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email)")
 
     # ── 6. audit_logs: add missing standalone user_id index ──────────────────
-    op.create_index("ix_audit_logs_user_id", "audit_logs", ["user_id"])
+    op.execute("CREATE INDEX IF NOT EXISTS ix_audit_logs_user_id ON audit_logs (user_id)")
 
 
 def downgrade() -> None:
@@ -87,7 +93,13 @@ def downgrade() -> None:
     op.create_unique_constraint("uq_users_email", "users", ["email"])
     op.create_unique_constraint("uq_users_username", "users", ["username"])
 
-    op.execute("ALTER TYPE user_role_enum RENAME TO userrole")
+    op.execute("""
+        DO $$ BEGIN
+            IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role_enum') THEN
+                ALTER TYPE user_role_enum RENAME TO userrole;
+            END IF;
+        END $$
+    """)
 
     op.alter_column("users", "hashed_password",
                     existing_type=sa.String(255), type_=sa.String(128), nullable=False)

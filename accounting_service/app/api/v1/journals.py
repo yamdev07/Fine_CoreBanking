@@ -1,5 +1,5 @@
 """
-Router — Écritures comptables (Journaux)
+Router — Journaux et Écritures comptables
 """
 import math
 from datetime import date
@@ -17,12 +17,27 @@ from app.core.exceptions import (
 )
 from app.core.security import AnyAuthenticated, ServiceOrWrite, WriteAccess, TokenPayload
 from app.db.session import get_session
+from app.repositories.accounting import JournalRepository
 from app.schemas.accounting import (
-    JournalEntryCreate, JournalEntryResponse,
+    JournalEntryCreate, JournalEntryResponse, JournalResponse,
     LetteringRequest, LetteringResponse, PaginatedResponse,
 )
 from app.services.accounting import JournalEntryService
 
+# ─── Router pour les Journaux (CJ, BJ, OD…) ─────────────────────────────────
+journals_router = APIRouter(prefix="/journals", tags=["Journaux"])
+
+
+@journals_router.get("/", response_model=list[JournalResponse])
+async def list_journals(
+    principal: AnyAuthenticated,
+    session: AsyncSession = Depends(get_session),
+):
+    """Liste tous les journaux actifs. Rôles : tous."""
+    return await JournalRepository(session).list_all()
+
+
+# ─── Router pour les Écritures (JournalEntry) ────────────────────────────────
 router = APIRouter(prefix="/journal-entries", tags=["Écritures comptables"])
 
 
@@ -53,14 +68,20 @@ async def create_entry(
 @router.get("/", response_model=PaginatedResponse[JournalEntryResponse])
 async def list_entries(
     principal: AnyAuthenticated,
-    period_id: str = Query(...),
+    period_id: str | None = Query(None),
     status: str | None = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=500),
     svc: JournalEntryService = Depends(get_entry_service),
 ):
-    """Liste les écritures d'une période. Rôles : tous."""
-    status_enum = EntryStatus(status) if status else None
+    """Liste les écritures (filtrables par période et statut). Rôles : tous."""
+    try:
+        status_enum = EntryStatus(status) if status else None
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Statut invalide: '{status}'. Valeurs acceptées: {[s.value for s in EntryStatus]}",
+        )
     items, total = await svc.entry_repo.list_by_period(
         period_id, status=status_enum, offset=(page - 1) * size, limit=size
     )

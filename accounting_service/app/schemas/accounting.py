@@ -251,6 +251,7 @@ class JournalEntryResponse(BaseModel):
     id: str
     entry_number: str
     journal_id: str
+    journal_code: str | None = None
     period_id: str
     entry_date: date
     value_date: date
@@ -265,6 +266,7 @@ class JournalEntryResponse(BaseModel):
     posted_by: str | None
     source_service: str | None
     source_event_id: str | None
+    source_entry_id: str | None = None
     created_at: datetime
     lines: list[JournalLineResponse] = []
 

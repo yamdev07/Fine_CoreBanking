@@ -208,6 +208,12 @@ class JournalRepository:
         stmt = select(Journal).where(Journal.code == code)
         return (await self.session.execute(stmt)).scalar_one_or_none()
 
+    async def list_all(self) -> list[Journal]:
+        result = await self.session.execute(
+            select(Journal).where(Journal.is_active == True).order_by(Journal.code)
+        )
+        return list(result.scalars().all())
+
     async def create(self, journal: Journal) -> Journal:
         self.session.add(journal)
         await self.session.flush()
@@ -239,7 +245,8 @@ class JournalEntryRepository:
             stmt = (
                 select(JournalEntry)
                 .options(
-                    selectinload(JournalEntry.lines).selectinload(JournalLine.account)
+                    selectinload(JournalEntry.journal),
+                    selectinload(JournalEntry.lines).selectinload(JournalLine.account),
                 )
                 .where(JournalEntry.id == id)
             )
@@ -261,16 +268,20 @@ class JournalEntryRepository:
 
     async def list_by_period(
         self,
-        period_id: str,
+        period_id: str | None,
         *,
         status: EntryStatus | None = None,
         offset: int = 0,
         limit: int = 50,
     ) -> tuple[list[JournalEntry], int]:
-        stmt = select(JournalEntry).where(JournalEntry.period_id == period_id)
-        count_stmt = select(func.count()).select_from(JournalEntry).where(
-            JournalEntry.period_id == period_id
+        stmt = select(JournalEntry).options(
+            selectinload(JournalEntry.journal),
+            selectinload(JournalEntry.lines),
         )
+        count_stmt = select(func.count()).select_from(JournalEntry)
+        if period_id:
+            stmt = stmt.where(JournalEntry.period_id == period_id)
+            count_stmt = count_stmt.where(JournalEntry.period_id == period_id)
         if status:
             stmt = stmt.where(JournalEntry.status == status)
             count_stmt = count_stmt.where(JournalEntry.status == status)
@@ -300,13 +311,15 @@ class JournalEntryRepository:
                 ap.account_type,
                 ap.account_nature,
                 ap.currency,
-                COALESCE(SUM(jl.debit_amount),  0) AS period_debit,
-                COALESCE(SUM(jl.credit_amount), 0) AS period_credit
+                COALESCE(SUM(CASE WHEN je.status = 'POSTED'
+                                   AND je.entry_date BETWEEN :start_date AND :end_date
+                                  THEN jl.debit_amount  ELSE 0 END), 0) AS period_debit,
+                COALESCE(SUM(CASE WHEN je.status = 'POSTED'
+                                   AND je.entry_date BETWEEN :start_date AND :end_date
+                                  THEN jl.credit_amount ELSE 0 END), 0) AS period_credit
             FROM account_plans ap
             LEFT JOIN journal_lines jl ON jl.account_id = ap.id
             LEFT JOIN journal_entries je ON je.id = jl.entry_id
-                AND je.status = 'POSTED'
-                AND je.entry_date BETWEEN :start_date AND :end_date
             WHERE ap.is_leaf = TRUE
             GROUP BY ap.id, ap.code, ap.name, ap.account_class,
                      ap.account_type, ap.account_nature, ap.currency
@@ -314,7 +327,8 @@ class JournalEntryRepository:
         """
         rows = (
             await self.session.execute(
-                text(stmt), {"start_date": start_date, "end_date": end_date}
+                text(stmt),
+                {"start_date": str(start_date), "end_date": str(end_date)},
             )
         ).mappings().all()
         return [dict(r) for r in rows]
@@ -339,10 +353,16 @@ class JournalEntryRepository:
               AND je.entry_date BETWEEN :start_date AND :end_date
             ORDER BY je.entry_date, je.entry_number, jl.line_number
         """
+        # UUID(as_uuid=False) stores without hyphens in SQLite; strip them so
+        # text() comparisons work on both SQLite (tests) and PostgreSQL (prod).
         rows = (
             await self.session.execute(
                 text(stmt),
-                {"account_id": account_id, "start_date": start_date, "end_date": end_date},
+                {
+                    "account_id": account_id.replace("-", ""),
+                    "start_date": str(start_date),
+                    "end_date": str(end_date),
+                },
             )
         ).mappings().all()
         return [dict(r) for r in rows]
