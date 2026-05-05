@@ -7,8 +7,65 @@ on:
     branches: [main, master]
 
 jobs:
+  # ── Lint — Accounting Service ────────────────────────────────────────────────
+  accounting-lint:
+    name: Accounting Service — Lint
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: accounting_service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        run: pip install poetry==1.8.2
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Run ruff (lint)
+        run: poetry run ruff check app/ tests/ --output-format=github
+
+      - name: Run ruff (format check)
+        run: poetry run ruff format app/ tests/ --check
+
+  # ── Lint — Reporting Service ─────────────────────────────────────────────────
+  reporting-lint:
+    name: Reporting Service — Lint
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: reporting_service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        run: pip install poetry==1.8.2
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Run ruff (lint)
+        run: poetry run ruff check app/ tests/ --output-format=github
+
+      - name: Run ruff (format check)
+        run: poetry run ruff format app/ tests/ --check
+
   # ── Accounting Service ───────────────────────────────────────────────────────
   accounting-tests:
+    needs: accounting-lint
     name: Accounting Service — Tests
     runs-on: ubuntu-latest
 
