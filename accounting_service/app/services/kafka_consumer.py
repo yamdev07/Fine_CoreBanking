@@ -10,15 +10,16 @@ Exemples d'événements traités :
   - cash.events    : CASH_DEPOSIT, CASH_WITHDRAWAL, CASH_TRANSFER
 """
 
+import asyncio
 import json
-import logging
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import StrEnum
 from typing import Any
 
-from aiokafka import AIOKafkaConsumer
+import structlog
+from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -27,7 +28,10 @@ from app.repositories.accounting import AccountRepository, JournalRepository
 from app.schemas.accounting import JournalEntryCreate, JournalLineCreate
 from app.services.accounting import JournalEntryService
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
+
+MAX_RETRIES = 3
+DLQ_SUFFIX = ".dlq"
 
 # Mapping strict topic → service autorisé.
 # Un message sur credit.events provenant d'un autre service est rejeté.
@@ -224,7 +228,7 @@ async def process_event(event: AccountingEvent, session: AsyncSession) -> None:
     try:
         movements = AccountingRules.get_movements(event.event_type, event.payload)
     except ValueError as e:
-        logger.warning("Événement ignoré — règle manquante: %s", e)
+        logger.warning("kafka.event.no_rule", error=str(e))
         return
 
     account_repo = AccountRepository(session)
@@ -282,15 +286,39 @@ async def process_event(event: AccountingEvent, session: AsyncSession) -> None:
     # Auto-valider les écritures issues d'événements (elles sont déjà contrôlées)
     await svc.post_entry(entry.id, posted_by="kafka-consumer")
     logger.info(
-        "Écriture %s générée depuis l'événement %s/%s",
-        entry.entry_number,
-        event.source_service,
-        event.event_id,
+        "kafka.entry.created",
+        entry_number=entry.entry_number,
+        source_service=event.source_service,
+        event_id=event.event_id,
+    )
+
+
+async def _publish_dlq(
+    producer: AIOKafkaProducer, topic: str, raw: dict, error: str, attempts: int
+) -> None:
+    dlq_topic = f"{topic}{DLQ_SUFFIX}"
+    payload = json.dumps(
+        {
+            "original_topic": topic,
+            "original_message": raw,
+            "error": error,
+            "failed_at": datetime.now(UTC).isoformat(),
+            "attempts": attempts,
+        },
+        default=str,
+    ).encode()
+    await producer.send_and_wait(dlq_topic, value=payload)
+    logger.error(
+        "kafka.dlq.published",
+        topic=dlq_topic,
+        event_id=raw.get("event_id"),
+        error=error,
+        attempts=attempts,
     )
 
 
 async def run_consumer() -> None:
-    """Démarre le consommateur Kafka en boucle infinie."""
+    """Démarre le consommateur Kafka avec retry + DLQ."""
     consumer = AIOKafkaConsumer(
         settings.KAFKA_TOPIC_CREDIT_EVENTS,
         settings.KAFKA_TOPIC_SAVINGS_EVENTS,
@@ -298,51 +326,104 @@ async def run_consumer() -> None:
         bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
         group_id=settings.KAFKA_CONSUMER_GROUP,
         auto_offset_reset="earliest",
-        enable_auto_commit=False,  # Commit manuel après traitement
+        enable_auto_commit=False,
         value_deserializer=lambda m: json.loads(m.decode("utf-8")),
     )
+    dlq_producer = AIOKafkaProducer(bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS)
 
     await consumer.start()
-    logger.info("Kafka consumer démarré — en attente d'événements...")
+    await dlq_producer.start()
+    logger.info("kafka.consumer.started")
 
     try:
         async for msg in consumer:
             raw = msg.value
-            try:
-                # Zero Trust : vérifier que la source déclarée correspond au topic.
-                # Le champ source_service du payload ne suffit pas —
-                # on le confirme via le topic de provenance.
-                topic = msg.topic
-                declared_source = raw.get("source_service", "")
-                expected_source = TOPIC_ALLOWED_SOURCES.get(topic, "")
-                if declared_source != expected_source:
-                    logger.warning(
-                        "Kafka source mismatch — topic=%s déclaré=%s attendu=%s — message rejeté",
-                        topic,
-                        declared_source,
-                        expected_source,
-                    )
-                    # Ne pas commiter : message potentiellement forgé, laisser en queue
-                    continue
+            topic = msg.topic
 
-                event = AccountingEvent(
-                    event_id=raw["event_id"],
-                    event_type=EventType(raw["event_type"]),
-                    source_service=expected_source,  # source fiable (topic), pas le payload
-                    occurred_at=raw["occurred_at"],
-                    payload=raw.get("payload", {}),
+            # Zero Trust: verify source matches topic
+            declared_source = raw.get("source_service", "")
+            expected_source = TOPIC_ALLOWED_SOURCES.get(topic, "")
+            if declared_source != expected_source:
+                logger.warning(
+                    "kafka.source_mismatch",
+                    topic=topic,
+                    declared=declared_source,
+                    expected=expected_source,
                 )
+                continue
 
-                async with AsyncSessionFactory() as session:
-                    async with session.begin():
-                        await process_event(event, session)
+            last_exc: Exception | None = None
+            for attempt in range(1, MAX_RETRIES + 1):
+                try:
+                    event = AccountingEvent(
+                        event_id=raw["event_id"],
+                        event_type=EventType(raw["event_type"]),
+                        source_service=expected_source,
+                        occurred_at=raw["occurred_at"],
+                        payload=raw.get("payload", {}),
+                    )
+                    async with AsyncSessionFactory() as session:
+                        async with session.begin():
+                            await process_event(event, session)
+                    await consumer.commit()
+                    last_exc = None
+                    break
+                except Exception as exc:
+                    last_exc = exc
+                    wait = 2 ** attempt
+                    logger.warning(
+                        "kafka.retry",
+                        attempt=attempt,
+                        max=MAX_RETRIES,
+                        event_id=raw.get("event_id"),
+                        error=str(exc),
+                        retry_in=wait,
+                    )
+                    if attempt < MAX_RETRIES:
+                        await asyncio.sleep(wait)
 
+            if last_exc is not None:
+                await _publish_dlq(dlq_producer, topic, raw, str(last_exc), MAX_RETRIES)
                 await consumer.commit()
 
-            except Exception as exc:
-                logger.exception(
-                    "Erreur traitement événement %s: %s", raw.get("event_id", "?"), exc
-                )
-                # On continue pour ne pas bloquer la file — Dead Letter Queue à implémenter
+    except asyncio.CancelledError:
+        pass
     finally:
         await consumer.stop()
+        await dlq_producer.stop()
+        logger.info("kafka.consumer.stopped")
+
+
+async def run_dlq_monitor() -> None:
+    """Consomme les topics DLQ et log à ERROR level — alerting passif."""
+    dlq_topics = [
+        f"{settings.KAFKA_TOPIC_CREDIT_EVENTS}{DLQ_SUFFIX}",
+        f"{settings.KAFKA_TOPIC_SAVINGS_EVENTS}{DLQ_SUFFIX}",
+        f"{settings.KAFKA_TOPIC_CASH_EVENTS}{DLQ_SUFFIX}",
+    ]
+    consumer = AIOKafkaConsumer(
+        *dlq_topics,
+        bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
+        group_id=f"{settings.KAFKA_CONSUMER_GROUP}-dlq-monitor",
+        auto_offset_reset="earliest",
+        enable_auto_commit=True,
+        value_deserializer=lambda m: json.loads(m.decode("utf-8")),
+    )
+    await consumer.start()
+    logger.info("kafka.dlq_monitor.started", topics=dlq_topics)
+    try:
+        async for msg in consumer:
+            v = msg.value
+            logger.error(
+                "kafka.dlq.unprocessable_event",
+                original_topic=v.get("original_topic"),
+                event_id=v.get("original_message", {}).get("event_id"),
+                error=v.get("error"),
+                attempts=v.get("attempts"),
+                failed_at=v.get("failed_at"),
+            )
+    except asyncio.CancelledError:
+        pass
+    finally:
+        await consumer.stop()
+        logger.info("kafka.dlq_monitor.stopped")

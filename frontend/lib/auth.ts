@@ -11,15 +11,17 @@ export interface AuthUser {
 
 export interface AuthState {
   token: string;
+  refresh_token: string;
   user: AuthUser;
   expires_at: number; // ms timestamp
 }
 
 const KEY = "cb_auth";
 
-export function saveAuth(token: string, user: AuthUser, expires_in: number): void {
+export function saveAuth(token: string, refreshToken: string, user: AuthUser, expires_in: number): void {
   const state: AuthState = {
     token,
+    refresh_token: refreshToken,
     user,
     expires_at: Date.now() + expires_in * 1000,
   };
@@ -51,6 +53,16 @@ export function clearAuth(): void {
 
 export function getToken(): string | null {
   return loadAuth()?.token ?? null;
+}
+
+export function getRefreshToken(): string | null {
+  return loadAuth()?.refresh_token ?? null;
+}
+
+export function isExpiringSoon(): boolean {
+  const state = loadAuth();
+  if (!state) return false;
+  return state.expires_at - Date.now() < 2 * 60 * 1000;
 }
 
 export const ROLE_LABELS: Record<UserRole, string> = {

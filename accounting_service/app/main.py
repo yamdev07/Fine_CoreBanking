@@ -12,13 +12,14 @@ from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from slowapi.util import get_remote_address
 
-from app.api.v1 import accounts, auth, fiscal_years, journals, reports, users
+from app.api.v1 import accounts, auth, fiscal_years, health as health_router, journals, reports, users
 from app.api.v1.journals import journals_router
 from app.core.audit import AuditMiddleware
 from app.core.config import settings
 from app.core.exceptions import AccountingBaseError
+from app.core.metrics import setup_metrics
+from app.core.rate_limit import get_jwt_subject, get_user_limit
 from app.db.session import AsyncSessionFactory, engine
 
 # ─── Logging structuré ────────────────────────────────────────────────────────
@@ -34,7 +35,7 @@ logger = structlog.get_logger(__name__)
 
 # ─── Rate limiter (partagé avec les routers via state) ───────────────────────
 
-limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
+limiter = Limiter(key_func=get_jwt_subject, default_limits=[get_user_limit])
 
 
 # ─── Lifecycle ────────────────────────────────────────────────────────────────
@@ -44,6 +45,10 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 async def lifespan(app: FastAPI):
     logger.info("accounting_service.starting", version=settings.APP_VERSION)
 
+    # Distributed tracing
+    from app.core.telemetry import configure_tracing
+    configure_tracing(app)
+
     # Seed admin par défaut
     from app.services.auth import seed_admin
 
@@ -52,20 +57,28 @@ async def lifespan(app: FastAPI):
             await seed_admin(session)
 
     # Démarrer le consommateur Kafka en arrière-plan
-    from app.services.kafka_consumer import run_consumer
+    from app.services.kafka_consumer import run_consumer, run_dlq_monitor
     from app.services.kafka_producer import stop_producer
 
     kafka_task = asyncio.create_task(run_consumer())
+    dlq_task = asyncio.create_task(run_dlq_monitor())
 
     yield
 
     # Arrêt propre
     kafka_task.cancel()
+    dlq_task.cancel()
     try:
         await kafka_task
     except asyncio.CancelledError:
         pass
+    try:
+        await dlq_task
+    except asyncio.CancelledError:
+        pass
     await stop_producer()
+    from app.core.redis_pool import close_redis_pool
+    await close_redis_pool()
     await engine.dispose()
     logger.info("accounting_service.stopped")
 
@@ -91,6 +104,10 @@ et les rapports financiers selon les normes SYSCOHADA / BCEAO.
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# ─── Metrics ─────────────────────────────────────────────────────────────────
+
+setup_metrics(app)
 
 # ─── Rate limiting ────────────────────────────────────────────────────────────
 
@@ -148,43 +165,7 @@ app.include_router(accounts.router, prefix=API_PREFIX)
 app.include_router(journals_router, prefix=API_PREFIX)
 app.include_router(journals.router, prefix=API_PREFIX)
 app.include_router(reports.router, prefix=API_PREFIX)
-
-
-@app.get("/health", tags=["Santé"])
-async def health_check():
-    """Point de contrôle de santé — vérifie DB et Redis."""
-    import redis.asyncio as aioredis
-
-    from app.db.session import engine as db_engine
-
-    checks: dict[str, str] = {}
-
-    # Check PostgreSQL
-    try:
-        async with db_engine.connect() as conn:
-            await conn.execute(__import__("sqlalchemy").text("SELECT 1"))
-        checks["database"] = "ok"
-    except Exception:
-        checks["database"] = "error"
-
-    # Check Redis
-    try:
-        r = aioredis.from_url(settings.REDIS_URL, socket_connect_timeout=2)
-        await r.ping()
-        await r.aclose()
-        checks["redis"] = "ok"
-    except Exception:
-        checks["redis"] = "error"
-
-    status = "healthy" if all(v == "ok" for v in checks.values()) else "degraded"
-
-    return {
-        "status": status,
-        "service": settings.APP_NAME,
-        "version": settings.APP_VERSION,
-        "environment": settings.ENVIRONMENT,
-        "checks": checks,
-    }
+app.include_router(health_router.router, prefix=API_PREFIX)
 
 
 @app.get("/", tags=["Info"])

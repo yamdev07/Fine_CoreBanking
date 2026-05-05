@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "change-me-in-production"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 60
+    REFRESH_TOKEN_TTL_DAYS: int = 7
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://jaeger:4317"
+    OTEL_ENABLED: bool = False
 
     # CORS (comma-separated list of allowed origins)
     CORS_ALLOWED_ORIGINS: str = "http://localhost:3000"
