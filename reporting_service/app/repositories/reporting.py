@@ -277,7 +277,7 @@ class ReportingRepository:
             JOIN journal_entries je ON je.id = jl.entry_id
             WHERE je.status = 'POSTED'
               AND je.entry_date BETWEEN :start_date AND :end_date
-              AND ap.account_class IN ('6', '7')
+              AND ap.account_class IN ('CHARGES', 'PRODUITS')
               AND ap.is_leaf = TRUE
             GROUP BY ap.id, ap.code, ap.name, ap.account_class, ap.account_type
             ORDER BY ap.code
@@ -446,9 +446,9 @@ class ReportingRepository:
         row = await self._fetch_one(
             """
             SELECT
-                COALESCE(SUM(CASE WHEN ap.account_class = '7'
+                COALESCE(SUM(CASE WHEN ap.account_class = 'PRODUITS'
                     THEN jl.credit_amount - jl.debit_amount ELSE 0 END), 0) -
-                COALESCE(SUM(CASE WHEN ap.account_class = '6'
+                COALESCE(SUM(CASE WHEN ap.account_class = 'CHARGES'
                     THEN jl.debit_amount - jl.credit_amount ELSE 0 END), 0)
                 AS resultat_net
             FROM journal_lines jl
@@ -456,7 +456,7 @@ class ReportingRepository:
             JOIN account_plans ap ON ap.id = jl.account_id
             WHERE je.status = 'POSTED'
               AND je.entry_date BETWEEN :start_date AND :end_date
-              AND ap.account_class IN ('6', '7')
+              AND ap.account_class IN ('CHARGES', 'PRODUITS')
             """,
             {"start_date": start_date, "end_date": end_date},
         )
@@ -474,7 +474,7 @@ class ReportingRepository:
             JOIN account_plans ap ON ap.id = jl.account_id
             WHERE je.status = 'POSTED'
               AND je.entry_date <= :as_of_date
-              AND ap.account_class = '1'
+              AND ap.account_class = 'CAPITAL'
               AND ap.is_leaf = TRUE
             """,
             {"as_of_date": as_of_date},
