@@ -2,11 +2,11 @@
 API tests — Rapports comptables
 Couvre : balance générale, grand livre, dates invalides, permissions.
 """
-import pytest
 from decimal import Decimal
+
 from httpx import AsyncClient
 
-from tests.conftest import CASH_ACCOUNT_ID, CREDIT_ACCOUNT_ID, CAISSE_JOURNAL_ID
+from tests.conftest import CAISSE_JOURNAL_ID, CASH_ACCOUNT_ID, CREDIT_ACCOUNT_ID
 
 
 def balanced_entry(amount: str = "1000000") -> dict:
@@ -155,6 +155,6 @@ class TestGeneralLedger:
         assert res.status_code == 200
         lines = res.json()["lines"]
         assert len(lines) == 3
-        balances = [float(l["running_balance"]) for l in lines]
+        balances = [float(ln["running_balance"]) for ln in lines]
         # Each debit of 100000 → balance grows
         assert balances[0] < balances[1] < balances[2]

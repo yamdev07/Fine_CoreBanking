@@ -3,13 +3,13 @@ Endpoints d'authentification.
 """
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import AnyAuthenticated, TokenPayload
+from app.core.security import AnyAuthenticated
 from app.db.session import get_session
-from app.models.auth import User, UserRole
+from app.models.auth import User
 from app.schemas.auth import LoginRequest, TokenResponse, UserOut
 from app.services.auth import authenticate_user, create_access_token
 

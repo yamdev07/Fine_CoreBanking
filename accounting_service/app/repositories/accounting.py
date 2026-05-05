@@ -3,7 +3,6 @@ Repositories — Couche d'accès aux données.
 Pattern Repository : isole la logique SQL de la logique métier.
 """
 from datetime import date
-from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import and_, func, select, text, update
@@ -11,12 +10,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import (
-    AccountNotFoundError, FiscalYearNotFoundError,
-    JournalEntryNotFoundError, PeriodNotFoundError, AccountingBaseError,
+    AccountingBaseError,
+    AccountNotFoundError,
+    FiscalYearNotFoundError,
+    JournalEntryNotFoundError,
+    PeriodNotFoundError,
 )
 from app.models.accounting import (
-    AccountPlan, AccountingPeriod, EntryStatus, FiscalYear,
-    Journal, JournalEntry, JournalLine, PeriodStatus,
+    AccountingPeriod,
+    AccountPlan,
+    EntryStatus,
+    FiscalYear,
+    Journal,
+    JournalEntry,
+    JournalLine,
+    PeriodStatus,
 )
 
 
@@ -210,7 +218,7 @@ class JournalRepository:
 
     async def list_all(self) -> list[Journal]:
         result = await self.session.execute(
-            select(Journal).where(Journal.is_active == True).order_by(Journal.code)
+            select(Journal).where(Journal.is_active).order_by(Journal.code)
         )
         return list(result.scalars().all())
 

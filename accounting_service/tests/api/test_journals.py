@@ -2,15 +2,18 @@
 API tests — Écritures comptables
 Couvre : création, validation, extourne, lettrage, idempotence, permissions.
 """
-import pytest
 from decimal import Decimal
+
 from httpx import AsyncClient
 
 from tests.conftest import (
-    ADMIN_ID, ACCOUNTANT_ID, CAISSE_JOURNAL_ID, EXTOURNE_JOURNAL_ID,
-    CASH_ACCOUNT_ID, CREDIT_ACCOUNT_ID, PERIOD_ID,
+    ACCOUNTANT_ID,
+    ADMIN_ID,
+    CAISSE_JOURNAL_ID,
+    CASH_ACCOUNT_ID,
+    CREDIT_ACCOUNT_ID,
+    PERIOD_ID,
 )
-
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -79,7 +82,7 @@ class TestCreateEntry:
         assert res.status_code == 422
 
     async def test_create_idempotent_entry(self, api_client: AsyncClient, accountant_headers: dict):
-        data = {**balanced_entry(), "source_service": "credit-service", "source_event_id": "evt-unique-001"}
+        {**balanced_entry(), "source_service": "credit-service", "source_event_id": "evt-unique-001"}
         # Note: source_service/source_event_id are passed via query params or body — skip if not supported by schema
         res1 = await api_client.post("/api/v1/journal-entries/", json=balanced_entry(), headers=accountant_headers)
         res2 = await api_client.post("/api/v1/journal-entries/", json=balanced_entry(), headers=accountant_headers)
@@ -232,7 +235,7 @@ class TestLetterLines:
         entry_id = create_res.json()["id"]
         post_res = await api_client.post(f"/api/v1/journal-entries/{entry_id}/post", headers=accountant_headers)
         lines = post_res.json()["lines"]
-        line_ids = [l["id"] for l in lines]
+        line_ids = [ln["id"] for ln in lines]
 
         res = await api_client.post("/api/v1/journal-entries/letter", json={"line_ids": line_ids}, headers=accountant_headers)
         assert res.status_code == 200

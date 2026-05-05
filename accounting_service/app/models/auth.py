@@ -15,7 +15,7 @@ def _new_uuid() -> str:
     return str(uuid.uuid4())
 
 
-class UserRole(str, enum.Enum):
+class UserRole(enum.StrEnum):
     ADMIN      = "ADMIN"
     ACCOUNTANT = "ACCOUNTANT"
     AUDITOR    = "AUDITOR"

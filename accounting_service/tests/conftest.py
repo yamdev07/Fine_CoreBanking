@@ -3,8 +3,8 @@ Shared test fixtures — unit tests and API integration tests.
 """
 import os
 import uuid
-from datetime import date, datetime, timezone, timedelta
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -18,9 +18,16 @@ from app.core.config import settings
 from app.db.session import get_session
 from app.main import app
 from app.models.accounting import (
-    AccountClass, AccountNature, AccountPlan, AccountType,
-    AccountingPeriod, Base, FiscalYear, Journal, JournalCode,
-    JournalEntry, JournalLine, PeriodStatus,
+    AccountClass,
+    AccountingPeriod,
+    AccountNature,
+    AccountPlan,
+    AccountType,
+    Base,
+    FiscalYear,
+    Journal,
+    JournalCode,
+    PeriodStatus,
 )
 from app.models.auth import User, UserRole
 from app.services.auth import hash_password
@@ -76,7 +83,7 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
 
 def make_token(user_id: str, role: str, expired: bool = False) -> str:
     delta = -3600 if expired else 3600
-    exp = int((datetime.now(timezone.utc) + timedelta(seconds=delta)).timestamp())
+    exp = int((datetime.now(UTC) + timedelta(seconds=delta)).timestamp())
     return jwt.encode(
         {"sub": user_id, "roles": [role], "exp": exp},
         settings.JWT_SECRET_KEY,

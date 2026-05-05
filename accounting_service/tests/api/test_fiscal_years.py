@@ -2,11 +2,9 @@
 API tests — Exercices fiscaux et périodes
 Couvre : création, lecture, clôture, périodes générées.
 """
-import pytest
 from httpx import AsyncClient
 
-from tests.conftest import FISCAL_YEAR_ID, ADMIN_ID
-
+from tests.conftest import ADMIN_ID, FISCAL_YEAR_ID
 
 VALID_FISCAL_YEAR = {
     "name": "2025",

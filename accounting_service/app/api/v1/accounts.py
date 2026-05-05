@@ -6,7 +6,6 @@ import io
 import math
 import uuid
 from datetime import date
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
@@ -14,16 +13,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
-    AccountAlreadyExistsError, AccountHasChildrenError,
+    AccountAlreadyExistsError,
+    AccountHasChildrenError,
     AccountNotFoundError,
 )
-from app.core.security import AdminOnly, AnyAuthenticated, WriteAccess, TokenPayload
+from app.core.security import AdminOnly, AnyAuthenticated, WriteAccess
 from app.data.plan_templates import TEMPLATES, AccountDef
 from app.db.session import get_session
 from app.models.accounting import AccountPlan, Journal, JournalCode
-from app.repositories.accounting import AccountRepository
 from app.schemas.accounting import (
-    AccountBalanceResponse, AccountCreate, AccountResponse, AccountUpdate,
+    AccountBalanceResponse,
+    AccountCreate,
+    AccountResponse,
+    AccountUpdate,
     PaginatedResponse,
 )
 from app.services.accounting import AccountService

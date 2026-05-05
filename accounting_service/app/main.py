@@ -148,8 +148,9 @@ app.include_router(reports.router, prefix=API_PREFIX)
 @app.get("/health", tags=["Santé"])
 async def health_check():
     """Point de contrôle de santé — vérifie DB et Redis."""
-    from app.db.session import engine as db_engine
     import redis.asyncio as aioredis
+
+    from app.db.session import engine as db_engine
 
     checks: dict[str, str] = {}
 
