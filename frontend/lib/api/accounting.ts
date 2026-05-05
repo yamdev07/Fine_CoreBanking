@@ -1,6 +1,17 @@
-import { getToken } from "@/lib/auth";
+import { clearAuth, getToken } from "@/lib/auth";
 
 const BASE = process.env.NEXT_PUBLIC_ACCOUNTING_URL ?? "http://localhost:8000";
+
+function extractMsg(err: Record<string, unknown>, statusText: string): string {
+  const detail = err?.detail;
+  if (typeof detail === "string") return detail;
+  if (detail && typeof detail === "object") {
+    const d = detail as Record<string, unknown>;
+    if (typeof d.message === "string") return d.message;
+  }
+  if (typeof err?.message === "string") return err.message;
+  return statusText;
+}
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
@@ -11,9 +22,12 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   };
   const res = await fetch(`${BASE}${path}`, { ...init, headers });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }));
-    const msg = err?.detail?.message ?? err?.message ?? res.statusText;
-    throw new Error(msg);
+    if (res.status === 401) {
+      clearAuth();
+      window.location.href = "/login";
+    }
+    const err = await res.json().catch(() => ({ message: res.statusText })) as Record<string, unknown>;
+    throw new Error(extractMsg(err, res.statusText));
   }
   return res.json();
 }

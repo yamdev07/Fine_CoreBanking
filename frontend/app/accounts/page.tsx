@@ -8,7 +8,7 @@ import {
   type Account, type AccountCreate, type AccountUpdate,
 } from "@/lib/api/accounting";
 import { Search, Plus, Pencil, Trash2, ChevronRight, ChevronDown, List, GitBranch, Upload, X, AlertCircle } from "lucide-react";
-import { importAccountsCsv, type CsvImportResult } from "@/lib/api/accounting";
+import { importAccounts, type CsvImportResult } from "@/lib/api/accounting";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -191,7 +191,7 @@ export default function AccountsPage() {
     if (!importFile) return;
     setImporting(true); setImportError(""); setImportResult(null);
     try {
-      const r = await importAccountsCsv(importFile);
+      const r = await importAccounts(importFile);
       setImportResult(r);
       setImportFile(null);
       load();
