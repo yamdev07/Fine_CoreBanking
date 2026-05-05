@@ -73,7 +73,7 @@ function buildNav(role: UserRole | undefined): NavItem[] {
 function NavGroup({ item }: { item: NavItem }) {
   const pathname = usePathname();
   const isChildActive = item.children?.some((c) => c.href && pathname.startsWith(c.href));
-  const [open, setOpen] = useState(isChildActive ?? true);
+  const [open, setOpen] = useState(true);
 
   return (
     <div>
