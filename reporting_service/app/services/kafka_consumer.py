@@ -9,6 +9,7 @@ Quand une écriture est validée (ENTRY_POSTED), les rapports qui agrègent
 les mouvements sont périmés. On invalide leurs clés pour forcer un recalcul
 à la prochaine requête.
 """
+
 import asyncio
 import logging
 
@@ -53,8 +54,9 @@ async def run_cache_invalidation_consumer() -> None:
     )
 
     await consumer.start()
-    logger.info("cache_invalidation_consumer.started topic=%s",
-                settings.KAFKA_TOPIC_ACCOUNTING_EVENTS)
+    logger.info(
+        "cache_invalidation_consumer.started topic=%s", settings.KAFKA_TOPIC_ACCOUNTING_EVENTS
+    )
 
     try:
         async for msg in consumer:
@@ -68,11 +70,11 @@ async def run_cache_invalidation_consumer() -> None:
                     await invalidate_pattern(pattern)
                 logger.info(
                     "cache_invalidation.done event_type=%s patterns=%d",
-                    event_type, len(patterns),
+                    event_type,
+                    len(patterns),
                 )
             except Exception as exc:
-                logger.error("cache_invalidation.failed event_type=%s error=%s",
-                             event_type, exc)
+                logger.error("cache_invalidation.failed event_type=%s error=%s", event_type, exc)
     except asyncio.CancelledError:
         pass
     finally:

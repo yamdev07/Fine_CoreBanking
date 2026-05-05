@@ -2,7 +2,9 @@
 Configuration du microservice Reporting.
 Se connecte à la base de données comptabilité en LECTURE SEULE.
 """
+
 from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,8 +27,8 @@ class Settings(BaseSettings):
 
     # Redis — cache des rapports lourds (balance, bilan)
     REDIS_URL: str = "redis://localhost:6379/1"
-    CACHE_TTL_SECONDS: int = 300          # 5 minutes par défaut
-    CACHE_TTL_ANNUAL_REPORT: int = 3600   # 1h pour les rapports annuels
+    CACHE_TTL_SECONDS: int = 300  # 5 minutes par défaut
+    CACHE_TTL_ANNUAL_REPORT: int = 3600  # 1h pour les rapports annuels
 
     # Sécurité JWT (partagée avec l'API Gateway)
     JWT_SECRET_KEY: str = "change-me-in-production"

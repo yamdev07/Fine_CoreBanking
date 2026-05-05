@@ -13,17 +13,18 @@ Rapports implémentés :
   9.  Rapport BCEAO — États financiers prudentiels
   10. Journal centralisateur (par journal, par période)
 """
+
 from datetime import date, datetime
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
-
+from pydantic import BaseModel, Field
 
 # ─── Helpers communs ──────────────────────────────────────────────────────────
 
-class ExportFormat(str, Enum):
+
+class ExportFormat(StrEnum):
     JSON = "json"
     PDF = "pdf"
     EXCEL = "excel"
@@ -41,6 +42,7 @@ class ReportHeader(BaseModel):
 
 # ─── 1. Balance générale ──────────────────────────────────────────────────────
 
+
 class TrialBalanceLine(BaseModel):
     account_code: str
     account_name: str
@@ -53,7 +55,7 @@ class TrialBalanceLine(BaseModel):
     period_credit: Decimal = Decimal("0")
     cumulative_debit: Decimal = Decimal("0")
     cumulative_credit: Decimal = Decimal("0")
-    closing_debit: Decimal = Decimal("0")   # Solde débiteur final
+    closing_debit: Decimal = Decimal("0")  # Solde débiteur final
     closing_credit: Decimal = Decimal("0")  # Solde créditeur final
 
 
@@ -71,6 +73,7 @@ class TrialBalanceReport(BaseModel):
 
 
 # ─── 2. Grand livre ───────────────────────────────────────────────────────────
+
 
 class LedgerMovement(BaseModel):
     entry_number: str
@@ -104,12 +107,13 @@ class GeneralLedgerReport(BaseModel):
 
 # ─── 3. Bilan comptable ───────────────────────────────────────────────────────
 
+
 class BilanLine(BaseModel):
     account_code: str
     account_name: str
     account_class: str
-    current_year: Decimal    # N
-    previous_year: Decimal   # N-1
+    current_year: Decimal  # N
+    previous_year: Decimal  # N-1
     variation: Decimal
     variation_pct: Decimal | None
 
@@ -137,12 +141,13 @@ class BilanReport(BaseModel):
     total_passif: Decimal
     total_passif_previous: Decimal
     # Contrôle
-    is_balanced: bool   # total_actif == total_passif
+    is_balanced: bool  # total_actif == total_passif
     reference_year: int
     current_year: int
 
 
 # ─── 4. Compte de résultat ────────────────────────────────────────────────────
+
 
 class ResultatLine(BaseModel):
     account_code: str
@@ -175,7 +180,7 @@ class CompteDeResultatReport(BaseModel):
     total_charges: Decimal
     total_charges_previous: Decimal
     # Résultats intermédiaires
-    produit_net_bancaire: Decimal      # PNB = Produits financiers - Charges financières
+    produit_net_bancaire: Decimal  # PNB = Produits financiers - Charges financières
     resultat_brut_exploitation: Decimal
     resultat_net: Decimal
     resultat_net_previous: Decimal
@@ -183,6 +188,7 @@ class CompteDeResultatReport(BaseModel):
 
 
 # ─── 5. Flux de trésorerie (simplifié) ───────────────────────────────────────
+
 
 class FluxTresorerieReport(BaseModel):
     header: ReportHeader
@@ -203,10 +209,11 @@ class FluxTresorerieReport(BaseModel):
 
 # ─── 6. État des créances (portefeuille crédits) ──────────────────────────────
 
+
 class CreditPortfolioLine(BaseModel):
     account_code: str
     account_name: str
-    encours: Decimal          # Solde débiteur = capital restant dû
+    encours: Decimal  # Solde débiteur = capital restant dû
     encours_previous: Decimal
     variation: Decimal
     pct_portefeuille: Decimal  # Part dans le portefeuille total
@@ -223,7 +230,7 @@ class CreditPortfolioReport(BaseModel):
     total_portefeuille: Decimal
     total_portefeuille_previous: Decimal
     # Indicateurs qualité
-    taux_impayés: Decimal           # Créances souffrance / Total portefeuille
+    taux_impayés: Decimal  # Créances souffrance / Total portefeuille
     taux_creances_douteuses: Decimal
     taux_couverture_provisions: Decimal
     # Provisions
@@ -233,6 +240,7 @@ class CreditPortfolioReport(BaseModel):
 
 
 # ─── 7. État des dépôts (épargne) ────────────────────────────────────────────
+
 
 class DepositReport(BaseModel):
     header: ReportHeader
@@ -248,17 +256,18 @@ class DepositReport(BaseModel):
     variation_pct: Decimal | None
     # Coût des ressources
     charges_interets_periode: Decimal
-    taux_moyen_remuneration: Decimal   # en %
+    taux_moyen_remuneration: Decimal  # en %
     # Ratio
-    ratio_credits_depots: Decimal      # Total crédits / Total dépôts (en %)
+    ratio_credits_depots: Decimal  # Total crédits / Total dépôts (en %)
 
 
 # ─── 8. Tableau de bord exécutif (KPIs) ──────────────────────────────────────
 
+
 class KPIValue(BaseModel):
     label: str
     value: Decimal
-    unit: str          # XOF | % | ratio
+    unit: str  # XOF | % | ratio
     previous_value: Decimal | None = None
     variation_pct: Decimal | None = None
     trend: str | None = None  # UP | DOWN | STABLE
@@ -277,8 +286,8 @@ class DashboardReport(BaseModel):
     kpi_taux_couverture: KPIValue
     # Rentabilité
     kpi_resultat_net: KPIValue
-    kpi_roe: KPIValue              # Return on Equity
-    kpi_roa: KPIValue              # Return on Assets
+    kpi_roe: KPIValue  # Return on Equity
+    kpi_roa: KPIValue  # Return on Assets
     # Liquidité
     kpi_ratio_liquidite: KPIValue  # Trésorerie / Dépôts à vue
     kpi_ratio_credits_depots: KPIValue
@@ -286,28 +295,29 @@ class DashboardReport(BaseModel):
 
 # ─── 9. Rapport BCEAO — États prudentiels ────────────────────────────────────
 
+
 class BceaoRatioLine(BaseModel):
-    code_ratio: str      # ex: "R1", "R2"
+    code_ratio: str  # ex: "R1", "R2"
     libelle: str
     numerateur: Decimal
     denominateur: Decimal
-    valeur: Decimal      # en %
-    norme: str           # ex: ">= 8%"
+    valeur: Decimal  # en %
+    norme: str  # ex: ">= 8%"
     conforme: bool
 
 
 class BceaoReport(BaseModel):
     header: ReportHeader
-    institution_agree: str     # Numéro d'agrément BCEAO
+    institution_agree: str  # Numéro d'agrément BCEAO
     date_arrete: date
     # Fonds propres nets
     fonds_propres_nets: Decimal
     # Ratios prudentiels UEMOA
-    ratio_solvabilite: BceaoRatioLine          # R1 >= 8%
-    ratio_liquidite: BceaoRatioLine            # R2 >= 100%
-    ratio_transformation: BceaoRatioLine       # R3
-    ratio_division_risques: BceaoRatioLine     # R4 <= 75%
-    ratio_couverture_risques: BceaoRatioLine   # R5
+    ratio_solvabilite: BceaoRatioLine  # R1 >= 8%
+    ratio_liquidite: BceaoRatioLine  # R2 >= 100%
+    ratio_transformation: BceaoRatioLine  # R3
+    ratio_division_risques: BceaoRatioLine  # R4 <= 75%
+    ratio_couverture_risques: BceaoRatioLine  # R5
     # Synthèse conformité
     total_ratios: int
     ratios_conformes: int
@@ -316,6 +326,7 @@ class BceaoReport(BaseModel):
 
 
 # ─── 10. Journal centralisateur ───────────────────────────────────────────────
+
 
 class JournalCentralisateurLine(BaseModel):
     journal_code: str
@@ -336,6 +347,7 @@ class JournalCentralisateurReport(BaseModel):
 
 
 # ─── Paramètres de requête communs ───────────────────────────────────────────
+
 
 class DateRangeParams(BaseModel):
     start_date: date
