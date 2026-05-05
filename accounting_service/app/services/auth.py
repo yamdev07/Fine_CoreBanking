@@ -2,6 +2,7 @@
 Service d'authentification — hachage de mots de passe, émission de tokens JWT.
 """
 
+import secrets
 from datetime import UTC, datetime, timedelta
 
 import structlog
@@ -45,6 +46,26 @@ def create_access_token(user: User) -> tuple[str, int]:
     }
     token = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
     return token, expires_in
+
+
+REFRESH_TOKEN_TTL = 7 * 24 * 3600  # 7 days
+REFRESH_PREFIX = "refresh:"
+
+
+async def create_refresh_token(user_id: str) -> str:
+    from app.core.redis_pool import get_redis
+    token = secrets.token_urlsafe(48)
+    r = await get_redis()
+    await r.setex(f"{REFRESH_PREFIX}{token}", REFRESH_TOKEN_TTL, user_id)
+    return token
+
+
+async def rotate_refresh_token(old_token: str) -> str | None:
+    """Atomically invalidate old token and return user_id, or None if invalid."""
+    from app.core.redis_pool import get_redis
+    r = await get_redis()
+    user_id = await r.getdel(f"{REFRESH_PREFIX}{old_token}")
+    return user_id
 
 
 async def authenticate_user(session: AsyncSession, username: str, password: str) -> User | None:

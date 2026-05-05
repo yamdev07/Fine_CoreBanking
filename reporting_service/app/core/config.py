@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     DEFAULT_PAGE_SIZE: int = 50
     MAX_PAGE_SIZE: int = 1000
 
+    # OpenTelemetry
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://jaeger:4317"
+    OTEL_ENABLED: bool = False
+
     # Kafka — écoute les événements de l'accounting pour invalider le cache
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
     KAFKA_TOPIC_ACCOUNTING_EVENTS: str = "accounting.events"

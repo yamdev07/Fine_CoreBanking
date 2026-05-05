@@ -5,6 +5,7 @@ const BASE = process.env.NEXT_PUBLIC_ACCOUNTING_URL ?? "http://localhost:8000";
 export interface LoginResponse {
   access_token: string;
   token_type: string;
+  refresh_token: string;
   expires_in: number;
   user: AuthUser;
 }
@@ -20,6 +21,17 @@ export async function login(username: string, password: string): Promise<LoginRe
     const msg = err?.detail?.message ?? err?.message ?? "Identifiants incorrects.";
     throw new Error(msg);
   }
+  return res.json();
+}
+
+export async function refreshTokenApi(refreshToken: string): Promise<LoginResponse> {
+  const BASE = process.env.NEXT_PUBLIC_ACCOUNTING_URL ?? "http://localhost:8000";
+  const res = await fetch(`${BASE}/api/v1/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  if (!res.ok) throw new Error("Refresh token invalide");
   return res.json();
 }
 
