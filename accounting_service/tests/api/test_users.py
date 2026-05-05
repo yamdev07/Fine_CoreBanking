@@ -2,11 +2,9 @@
 API tests — Gestion des utilisateurs (AdminOnly)
 Couvre : CRUD, restrictions de rôle, unicité.
 """
-import pytest
 from httpx import AsyncClient
 
-from tests.conftest import ADMIN_ID, ACCOUNTANT_ID, AUDITOR_ID
-
+from tests.conftest import ACCOUNTANT_ID, ADMIN_ID, AUDITOR_ID
 
 NEW_USER = {
     "username": "nouveau",

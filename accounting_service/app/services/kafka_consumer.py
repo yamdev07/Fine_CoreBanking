@@ -9,13 +9,12 @@ Exemples d'événements traités :
   - savings.events : SAVINGS_DEPOSIT, SAVINGS_WITHDRAWAL, INTEREST_CREDITED
   - cash.events    : CASH_DEPOSIT, CASH_WITHDRAWAL, CASH_TRANSFER
 """
-import asyncio
 import json
 import logging
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from aiokafka import AIOKafkaConsumer
@@ -38,7 +37,7 @@ TOPIC_ALLOWED_SOURCES: dict[str, str] = {
 }
 
 
-class EventType(str, Enum):
+class EventType(StrEnum):
     # Crédits
     CREDIT_DISBURSED = "CREDIT_DISBURSED"
     CREDIT_REPAYMENT = "CREDIT_REPAYMENT"
@@ -69,10 +68,10 @@ class AccountingEvent:
 class AccountingRules:
     """
     Règles de comptabilisation par type d'événement.
-    
+
     Chaque règle retourne une liste de (compte_code, sens, montant).
     Les comptes doivent exister dans le plan de comptes.
-    
+
     Convention SYSCOHADA adapté aux IMF/banques BCEAO :
       411xxx = Clients (débiteurs)
       251xxx = Crédits accordés

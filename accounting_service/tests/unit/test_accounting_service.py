@@ -20,22 +20,42 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.core.exceptions import (
-    AccountAlreadyExistsError, AccountHasBalanceError, AccountHasChildrenError,
-    FiscalYearClosedError, JournalEntryAlreadyPostedError,
-    JournalEntryAlreadyReversedError, PeriodClosedError, PeriodNotFoundError,
+    AccountAlreadyExistsError,
+    AccountHasBalanceError,
+    AccountHasChildrenError,
+    FiscalYearClosedError,
+    JournalEntryAlreadyPostedError,
+    JournalEntryAlreadyReversedError,
+    PeriodClosedError,
+    PeriodNotFoundError,
 )
 from app.models.accounting import (
-    AccountClass, AccountNature, AccountPlan, AccountType,
-    AccountingPeriod, EntryStatus, FiscalYear, FiscalYearStatus,
-    Journal, JournalCode, JournalEntry, JournalLine, PeriodStatus, Base,
+    AccountClass,
+    AccountingPeriod,
+    AccountNature,
+    AccountPlan,
+    AccountType,
+    Base,
+    EntryStatus,
+    FiscalYear,
+    FiscalYearStatus,
+    Journal,
+    JournalCode,
+    JournalLine,
+    PeriodStatus,
 )
 from app.schemas.accounting import (
-    AccountCreate, FiscalYearCreate, JournalEntryCreate, JournalLineCreate,
+    AccountCreate,
+    FiscalYearCreate,
+    JournalEntryCreate,
+    JournalLineCreate,
 )
 from app.services.accounting import (
-    AccountService, FiscalYearService, JournalEntryService, ReportService,
+    AccountService,
+    FiscalYearService,
+    JournalEntryService,
+    ReportService,
 )
-
 
 # ─── Session fixture (SQLite per test) ───────────────────────────────────────
 
@@ -287,6 +307,7 @@ class TestFiscalYearService:
         with patch("app.services.kafka_producer._publish", new_callable=AsyncMock):
             await svc.close(fiscal_year.id, closed_by="admin-001")
         from sqlalchemy import select
+
         from app.models.accounting import AccountingPeriod
         result = await session.execute(
             select(AccountingPeriod).where(AccountingPeriod.fiscal_year_id == fiscal_year.id)
@@ -657,7 +678,7 @@ class TestLettering:
         self, session, cash_account, credit_account, journal_caisse, open_period
     ):
         entry = await self._create_posted_entry(session, cash_account, credit_account, journal_caisse, open_period)
-        line_ids = [l.id for l in entry.lines]
+        line_ids = [ln.id for ln in entry.lines]
 
         svc = JournalEntryService(session)
         result = await svc.letter_lines(line_ids, lettered_by="supervisor")
@@ -670,7 +691,7 @@ class TestLettering:
     ):
         from app.core.exceptions import LineAlreadyLetteredError
         entry = await self._create_posted_entry(session, cash_account, credit_account, journal_caisse, open_period)
-        line_ids = [l.id for l in entry.lines]
+        line_ids = [ln.id for ln in entry.lines]
 
         svc = JournalEntryService(session)
         await svc.letter_lines(line_ids, lettered_by="supervisor")
@@ -683,7 +704,7 @@ class TestLettering:
         from app.core.exceptions import LetteringImbalancedError
         entry = await self._create_posted_entry(session, cash_account, credit_account, journal_caisse, open_period)
         # Only one line (debit without matching credit)
-        debit_only = [l.id for l in entry.lines if l.debit_amount > 0]
+        debit_only = [ln.id for ln in entry.lines if ln.debit_amount > 0]
 
         svc = JournalEntryService(session)
         with pytest.raises(LetteringImbalancedError):
@@ -766,5 +787,5 @@ class TestReportService:
         assert len(result["lines"]) == 3
         assert result["total_debit"] == sum(amounts)
         # Solde progressif croissant pour un compte débiteur
-        balances = [l["running_balance"] for l in result["lines"]]
+        balances = [ln["running_balance"] for ln in result["lines"]]
         assert balances[0] < balances[1] < balances[2]  # 100k, 300k, 350k

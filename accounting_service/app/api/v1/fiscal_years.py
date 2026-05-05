@@ -4,11 +4,13 @@ Router — Exercices fiscaux et périodes comptables.
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import AnyAuthenticated, WriteAccess
 from app.core.exceptions import FiscalYearClosedError, FiscalYearNotFoundError
+from app.core.security import AnyAuthenticated, WriteAccess
 from app.db.session import get_session
 from app.schemas.accounting import (
-    FiscalYearCreate, FiscalYearResponse, PeriodResponse,
+    FiscalYearCreate,
+    FiscalYearResponse,
+    PeriodResponse,
 )
 from app.services.accounting import FiscalYearService
 

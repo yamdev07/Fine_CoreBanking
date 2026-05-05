@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import AdminOnly, AnyAuthenticated, TokenPayload
+from app.core.security import AdminOnly
 from app.db.session import get_session
 from app.models.auth import User
 from app.schemas.auth import UserCreate, UserOut, UserUpdate

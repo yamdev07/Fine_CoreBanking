@@ -7,20 +7,28 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.accounting import EntryStatus
-
 from app.core.exceptions import (
-    AccountNotActiveError, AccountNotFoundError,
-    JournalEntryAlreadyPostedError, JournalEntryAlreadyReversedError,
-    JournalEntryNotFoundError, PeriodClosedError, PeriodNotFoundError,
-    LetteringImbalancedError, LineAlreadyLetteredError,
+    AccountNotActiveError,
+    AccountNotFoundError,
+    JournalEntryAlreadyPostedError,
+    JournalEntryAlreadyReversedError,
+    JournalEntryNotFoundError,
+    LetteringImbalancedError,
+    LineAlreadyLetteredError,
+    PeriodClosedError,
+    PeriodNotFoundError,
 )
-from app.core.security import AnyAuthenticated, ServiceOrWrite, WriteAccess, TokenPayload
+from app.core.security import AnyAuthenticated, ServiceOrWrite, WriteAccess
 from app.db.session import get_session
+from app.models.accounting import EntryStatus
 from app.repositories.accounting import JournalRepository
 from app.schemas.accounting import (
-    JournalEntryCreate, JournalEntryResponse, JournalResponse,
-    LetteringRequest, LetteringResponse, PaginatedResponse,
+    JournalEntryCreate,
+    JournalEntryResponse,
+    JournalResponse,
+    LetteringRequest,
+    LetteringResponse,
+    PaginatedResponse,
 )
 from app.services.accounting import JournalEntryService
 

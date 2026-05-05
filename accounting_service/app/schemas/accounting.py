@@ -8,10 +8,14 @@ from typing import Annotated, Generic, TypeVar
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models.accounting import (
-    AccountClass, AccountNature, AccountType,
-    EntryStatus, FiscalYearStatus, JournalCode, PeriodStatus,
+    AccountClass,
+    AccountNature,
+    AccountType,
+    EntryStatus,
+    FiscalYearStatus,
+    JournalCode,
+    PeriodStatus,
 )
-
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -233,8 +237,8 @@ class JournalEntryCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_balance(self) -> "JournalEntryCreate":
-        total_d = sum(l.debit_amount for l in self.lines)
-        total_c = sum(l.credit_amount for l in self.lines)
+        total_d = sum(ln.debit_amount for ln in self.lines)
+        total_c = sum(ln.credit_amount for ln in self.lines)
         if total_d != total_c:
             raise ValueError(
                 f"Écriture déséquilibrée : Débit={total_d} ≠ Crédit={total_c}. "

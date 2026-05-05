@@ -2,7 +2,6 @@
 Middleware d'audit — enregistre toutes les mutations (POST/PUT/PATCH/DELETE).
 Chaque écriture est non-bloquante (fire-and-forget via asyncio.create_task).
 """
-import json
 import time
 
 import structlog

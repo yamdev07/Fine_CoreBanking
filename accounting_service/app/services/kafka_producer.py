@@ -4,7 +4,7 @@ Les autres microservices (reporting, etc.) consomment ce topic.
 """
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from aiokafka import AIOKafkaProducer
 
@@ -55,7 +55,7 @@ async def publish_entry_posted(
     await _publish({
         "event_type": "ENTRY_POSTED",
         "source_service": "accounting-service",
-        "occurred_at": datetime.now(timezone.utc).isoformat(),
+        "occurred_at": datetime.now(UTC).isoformat(),
         "payload": {
             "entry_id": entry_id,
             "entry_number": entry_number,
@@ -74,7 +74,7 @@ async def publish_fiscal_year_closed(
     await _publish({
         "event_type": "FISCAL_YEAR_CLOSED",
         "source_service": "accounting-service",
-        "occurred_at": datetime.now(timezone.utc).isoformat(),
+        "occurred_at": datetime.now(UTC).isoformat(),
         "payload": {
             "fiscal_year_id": fiscal_year_id,
             "fiscal_year_name": fiscal_year_name,

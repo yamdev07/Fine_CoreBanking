@@ -2,16 +2,13 @@
 API tests — Plan de comptes
 Couvre : CRUD comptes, permissions par rôle, filtres, solde.
 """
-import pytest
 from decimal import Decimal
+
 from httpx import AsyncClient
 
 from tests.conftest import (
-    ADMIN_ID, ACCOUNTANT_ID, AUDITOR_ID,
-    CASH_ACCOUNT_ID, CREDIT_ACCOUNT_ID, PERIOD_ID,
-    CAISSE_JOURNAL_ID,
+    CASH_ACCOUNT_ID,
 )
-
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 

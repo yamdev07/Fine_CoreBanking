@@ -33,7 +33,7 @@ if settings.ENVIRONMENT == "production" and settings.JWT_SECRET_KEY == "change-m
 
 # ─── Rôles ────────────────────────────────────────────────────────────────────
 
-class Role(str, enum.Enum):
+class Role(enum.StrEnum):
     ADMIN           = "ADMIN"           # Accès total
     ACCOUNTANT      = "ACCOUNTANT"      # Saisie et validation des écritures
     AUDITOR         = "AUDITOR"         # Lecture seule

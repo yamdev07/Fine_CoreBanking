@@ -9,36 +9,56 @@ Règles fondamentales implémentées :
   5. Piste d'audit complète (qui, quoi, quand)
 """
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
-    AccountAlreadyExistsError, AccountHasBalanceError, AccountHasChildrenError,
-    AccountNotActiveError, FiscalYearClosedError, JournalEntryAlreadyPostedError,
-    JournalEntryAlreadyReversedError, JournalEntryImbalancedError,
-    JournalEntryMinimumLinesError, LetteringImbalancedError,
-    LineAlreadyLetteredError, PeriodClosedError, PeriodNotFoundError,
+    AccountAlreadyExistsError,
+    AccountHasBalanceError,
+    AccountHasChildrenError,
+    AccountNotActiveError,
+    FiscalYearClosedError,
+    JournalEntryAlreadyPostedError,
+    JournalEntryAlreadyReversedError,
+    JournalEntryImbalancedError,
+    LetteringImbalancedError,
+    LineAlreadyLetteredError,
+    PeriodClosedError,
+    PeriodNotFoundError,
 )
 from app.models.accounting import (
-    AccountClass, AccountNature, AccountPlan, AccountingPeriod, EntryStatus,
-    FiscalYear, FiscalYearStatus, Journal, JournalCode, JournalEntry,
-    JournalLine, PeriodStatus,
+    AccountClass,
+    AccountingPeriod,
+    AccountNature,
+    AccountPlan,
+    EntryStatus,
+    FiscalYear,
+    FiscalYearStatus,
+    JournalCode,
+    JournalEntry,
+    JournalLine,
+    PeriodStatus,
 )
 from app.repositories.accounting import (
-    AccountRepository, FiscalYearRepository, JournalEntryRepository,
-    JournalRepository, PeriodRepository,
+    AccountRepository,
+    FiscalYearRepository,
+    JournalEntryRepository,
+    JournalRepository,
+    PeriodRepository,
 )
 from app.schemas.accounting import (
-    AccountCreate, AccountUpdate, FiscalYearCreate,
-    JournalEntryCreate, PeriodCreate,
+    AccountCreate,
+    AccountUpdate,
+    FiscalYearCreate,
+    JournalEntryCreate,
 )
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class FiscalYearService:
@@ -255,8 +275,8 @@ class JournalEntryService:
         seq = await self.journal_repo.next_sequence(journal.id)
         entry_number = f"{journal.sequence_prefix}{journal.code}-{data.entry_date.year}-{seq:06d}"
 
-        total_debit = sum(l.debit_amount for l in data.lines)
-        total_credit = sum(l.credit_amount for l in data.lines)
+        total_debit = sum(ln.debit_amount for ln in data.lines)
+        total_credit = sum(ln.credit_amount for ln in data.lines)
 
         entry = JournalEntry(
             entry_number=entry_number,
@@ -322,8 +342,8 @@ class JournalEntryService:
             )
 
         # Revérifier l'équilibre (défense en profondeur)
-        total_debit = sum(l.debit_amount for l in entry.lines)
-        total_credit = sum(l.credit_amount for l in entry.lines)
+        total_debit = sum(ln.debit_amount for ln in entry.lines)
+        total_credit = sum(ln.credit_amount for ln in entry.lines)
         if total_debit != total_credit:
             raise JournalEntryImbalancedError(total_debit, total_credit)
 
@@ -371,7 +391,7 @@ class JournalEntryService:
                 f"L'écriture {original.entry_number} a déjà été extournée."
             )
 
-        reversal_date = reversal_date or datetime.now(timezone.utc).date()
+        reversal_date = reversal_date or datetime.now(UTC).date()
 
         # Chercher le journal d'extourne (EX)
         ex_journal = await self.journal_repo.get_by_code(JournalCode.EX.value)
@@ -443,14 +463,14 @@ class JournalEntryService:
         lines = list(result.scalars().all())
 
         # Vérifier qu'aucune ligne n'est déjà lettrée
-        already_lettered = [l for l in lines if l.lettering_code]
+        already_lettered = [ln for ln in lines if ln.lettering_code]
         if already_lettered:
             raise LineAlreadyLetteredError(
                 f"{len(already_lettered)} ligne(s) déjà lettrée(s)."
             )
 
-        total_debit = sum(l.debit_amount for l in lines)
-        total_credit = sum(l.credit_amount for l in lines)
+        total_debit = sum(ln.debit_amount for ln in lines)
+        total_credit = sum(ln.credit_amount for ln in lines)
         if total_debit != total_credit:
             raise LetteringImbalancedError(
                 f"Lettrage déséquilibré : Débit={total_debit} ≠ Crédit={total_credit}."

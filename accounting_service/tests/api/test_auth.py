@@ -2,10 +2,9 @@
 API tests — Authentification
 Couvre : login, /me, token expiré, token manquant, utilisateur inactif.
 """
-import pytest
 from httpx import AsyncClient
 
-from tests.conftest import ADMIN_ID, make_token
+from tests.conftest import ADMIN_ID
 
 
 class TestLogin:
@@ -41,7 +40,7 @@ class TestLogin:
 
     async def test_login_inactive_user_returns_401(self, api_client: AsyncClient, admin_headers: dict):
         # Deactivate the accountant first
-        res = await api_client.delete(f"/api/v1/users/10000000-0000-0000-0000-000000000002", headers=admin_headers)
+        res = await api_client.delete("/api/v1/users/10000000-0000-0000-0000-000000000002", headers=admin_headers)
         assert res.status_code == 204
 
         res = await api_client.post("/api/v1/auth/login", json={

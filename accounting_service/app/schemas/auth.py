@@ -7,7 +7,6 @@ from pydantic import BaseModel, EmailStr, field_validator
 
 from app.models.auth import UserRole
 
-
 # ─── Auth ─────────────────────────────────────────────────────────────────────
 
 class LoginRequest(BaseModel):

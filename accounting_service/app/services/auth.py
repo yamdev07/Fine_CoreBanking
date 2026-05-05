@@ -1,7 +1,7 @@
 """
 Service d'authentification — hachage de mots de passe, émission de tokens JWT.
 """
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import structlog
 from jose import jwt
@@ -36,7 +36,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 def create_access_token(user: User) -> tuple[str, int]:
     """Returns (token, expires_in_seconds)."""
     expires_in = settings.JWT_EXPIRE_MINUTES * 60
-    exp = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+    exp = datetime.now(UTC) + timedelta(seconds=expires_in)
     payload = {
         "sub": user.id,
         "roles": [_ROLE_MAP[user.role].value],
@@ -55,7 +55,7 @@ async def authenticate_user(
         return None
     if not verify_password(password, user.hashed_password):
         return None
-    user.last_login_at = datetime.now(timezone.utc)
+    user.last_login_at = datetime.now(UTC)
     return user
 
 

@@ -18,11 +18,22 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    BigInteger, Boolean, CheckConstraint, Date, DateTime, Enum,
-    ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint,
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
     func,
 )
-from sqlalchemy import Uuid as UUID
+from sqlalchemy import Uuid
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -36,7 +47,7 @@ def new_uuid() -> str:
 
 # ─── Enums ───────────────────────────────────────────────────────────────────
 
-class AccountClass(str, enum.Enum):
+class AccountClass(enum.StrEnum):
     CAPITAL = "1"
     IMMOBILISE = "2"
     STOCK = "3"
@@ -48,20 +59,20 @@ class AccountClass(str, enum.Enum):
     ANALYTIQUE = "9"
 
 
-class AccountType(str, enum.Enum):
+class AccountType(enum.StrEnum):
     ACTIF = "ACTIF"
     PASSIF = "PASSIF"
     CHARGE = "CHARGE"
     PRODUIT = "PRODUIT"
 
 
-class AccountNature(str, enum.Enum):
+class AccountNature(enum.StrEnum):
     """Sens normal du solde."""
     DEBITEUR = "DEBITEUR"   # Actifs, Charges
     CREDITEUR = "CREDITEUR"  # Passifs, Produits
 
 
-class JournalCode(str, enum.Enum):
+class JournalCode(enum.StrEnum):
     GJ = "GJ"    # Journal Général
     CJ = "CJ"    # Journal de Caisse
     BJ = "BJ"    # Journal de Banque
@@ -76,19 +87,19 @@ class JournalCode(str, enum.Enum):
     FX = "FX"    # Change et devises
 
 
-class EntryStatus(str, enum.Enum):
+class EntryStatus(enum.StrEnum):
     DRAFT = "DRAFT"       # Brouillon (modifiable)
     POSTED = "POSTED"     # Validé (immuable)
     REVERSED = "REVERSED"  # Extourné
 
 
-class PeriodStatus(str, enum.Enum):
+class PeriodStatus(enum.StrEnum):
     OPEN = "OPEN"
     CLOSED = "CLOSED"
     LOCKED = "LOCKED"  # Verrouillé après clôture annuelle
 
 
-class FiscalYearStatus(str, enum.Enum):
+class FiscalYearStatus(enum.StrEnum):
     OPEN = "OPEN"
     CLOSING = "CLOSING"  # En cours de clôture
     CLOSED = "CLOSED"
@@ -99,7 +110,7 @@ class FiscalYearStatus(str, enum.Enum):
 class FiscalYear(Base):
     __tablename__ = "fiscal_years"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_uuid)
     name: Mapped[str] = mapped_column(String(20), nullable=False)         # ex: "2024"
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
@@ -127,9 +138,9 @@ class FiscalYear(Base):
 class AccountingPeriod(Base):
     __tablename__ = "accounting_periods"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_uuid)
     fiscal_year_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("fiscal_years.id"), nullable=False
+        Uuid(as_uuid=False), ForeignKey("fiscal_years.id"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(20), nullable=False)   # ex: "2024-01"
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
@@ -156,7 +167,7 @@ class AccountPlan(Base):
     """Plan de comptes — hiérarchie arborescente (auto-référentielle)."""
     __tablename__ = "account_plans"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_uuid)
     code: Mapped[str] = mapped_column(String(20), nullable=False)   # ex: "411100"
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     short_name: Mapped[str | None] = mapped_column(String(50))
@@ -167,7 +178,7 @@ class AccountPlan(Base):
 
     # Hiérarchie
     parent_id: Mapped[str | None] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("account_plans.id")
+        Uuid(as_uuid=False), ForeignKey("account_plans.id")
     )
     level: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     # Code chemin pour requêtes hiérarchiques rapides : "1/4/41/411/4111/"
@@ -216,7 +227,7 @@ class Journal(Base):
     """Journaux auxiliaires (Caisse, Banque, Crédits, Épargne, OD, ...)."""
     __tablename__ = "journals"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_uuid)
     code: Mapped[str] = mapped_column(String(10), nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     journal_type: Mapped[JournalCode] = mapped_column(Enum(JournalCode), nullable=False)
@@ -243,13 +254,13 @@ class JournalEntry(Base):
     """
     __tablename__ = "journal_entries"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_uuid)
     entry_number: Mapped[str] = mapped_column(String(30), nullable=False)  # ex: GJ-2024-000001
     journal_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("journals.id"), nullable=False
+        Uuid(as_uuid=False), ForeignKey("journals.id"), nullable=False
     )
     period_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("accounting_periods.id"), nullable=False
+        Uuid(as_uuid=False), ForeignKey("accounting_periods.id"), nullable=False
     )
 
     entry_date: Mapped[date] = mapped_column(Date, nullable=False)
@@ -275,7 +286,7 @@ class JournalEntry(Base):
 
     # Lien vers écriture source (pour extournes)
     source_entry_id: Mapped[str | None] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("journal_entries.id")
+        Uuid(as_uuid=False), ForeignKey("journal_entries.id")
     )
     # Origine inter-microservices
     source_service: Mapped[str | None] = mapped_column(String(50))  # ex: "credit-service"
@@ -324,12 +335,12 @@ class JournalLine(Base):
     """
     __tablename__ = "journal_lines"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_uuid)
     entry_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("journal_entries.id"), nullable=False
+        Uuid(as_uuid=False), ForeignKey("journal_entries.id"), nullable=False
     )
     account_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("account_plans.id"), nullable=False
+        Uuid(as_uuid=False), ForeignKey("account_plans.id"), nullable=False
     )
     line_number: Mapped[int] = mapped_column(Integer, nullable=False)
 
