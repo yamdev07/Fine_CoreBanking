@@ -70,6 +70,10 @@ class JournalCode(str, enum.Enum):
     EX = "EX"    # Extourne
     CR = "CR"    # Crédits
     EP = "EP"    # Épargne
+    IB = "IB"    # Interbancaire (banque commerciale)
+    TR = "TR"    # Titres et valeurs mobilières
+    LC = "LC"    # Lettres de crédit / engagements hors-bilan
+    FX = "FX"    # Change et devises
 
 
 class EntryStatus(str, enum.Enum):
