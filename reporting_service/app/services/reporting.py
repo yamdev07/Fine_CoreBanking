@@ -264,18 +264,18 @@ class ReportingService:
             )
 
         # ACTIF — filtré account_type=ACTIF pour éviter le double-counting des classes mixtes
-        actif_immo  = await section("Actif immobilisé",     ["2"], "DEBITEUR",  "ACTIF")
-        actif_circ  = await section("Actif circulant",      ["4"], "DEBITEUR",  "ACTIF")
-        trso_actif  = await section("Trésorerie — Actif",   ["5"], "DEBITEUR",  "ACTIF")
+        actif_immo  = await section("Actif immobilisé",     ["IMMOBILISE"], "DEBITEUR",  "ACTIF")
+        actif_circ  = await section("Actif circulant",      ["TIERS"],      "DEBITEUR",  "ACTIF")
+        trso_actif  = await section("Trésorerie — Actif",   ["TRESORERIE"], "DEBITEUR",  "ACTIF")
 
         # PASSIF — filtré account_type=PASSIF
-        cap_propres = await section("Capitaux propres",     ["1"], "CREDITEUR", "PASSIF")
-        dettes_cl   = await section("Dettes clientèle",     ["3"], "CREDITEUR", "PASSIF")
-        dettes_exp  = await section("Dettes d'exploitation",["4"], "CREDITEUR", "PASSIF")
+        cap_propres = await section("Capitaux propres",     ["CAPITAL"],    "CREDITEUR", "PASSIF")
+        dettes_cl   = await section("Dettes clientèle",     ["STOCK"],      "CREDITEUR", "PASSIF")
+        dettes_exp  = await section("Dettes d'exploitation",["TIERS"],      "CREDITEUR", "PASSIF")
 
         # Trésorerie passif (découverts bancaires = solde créditeur en classe 5)
-        rows_trso = await self.repo.get_balance_by_account_class(as_of_date, ["5"], "PASSIF")
-        rows_trso_prev = await self.repo.get_balance_by_account_class(prev_date, ["5"], "PASSIF")
+        rows_trso = await self.repo.get_balance_by_account_class(as_of_date, ["TRESORERIE"], "PASSIF")
+        rows_trso_prev = await self.repo.get_balance_by_account_class(prev_date, ["TRESORERIE"], "PASSIF")
         trso_passif_cur = sum(
             max(Decimal(str(r["total_credit"])) - Decimal(str(r["total_debit"])), Decimal("0"))
             for r in rows_trso
@@ -642,12 +642,12 @@ class ReportingService:
 
         pnb_produits = sum(
             Decimal(str(r["total_credit"])) - Decimal(str(r["total_debit"]))
-            for r in pnb_rows if r["account_class"] == "7"
+            for r in pnb_rows if r["account_class"] == "PRODUITS"
         ) or Decimal("0")
         pnb_charges = sum(
             Decimal(str(r["total_debit"])) - Decimal(str(r["total_credit"]))
             for r in pnb_rows
-            if r["account_class"] == "6" and r["account_code"].startswith("663")
+            if r["account_class"] == "CHARGES" and r["account_code"].startswith("663")
         ) or Decimal("0")
         pnb = pnb_produits - pnb_charges
 
