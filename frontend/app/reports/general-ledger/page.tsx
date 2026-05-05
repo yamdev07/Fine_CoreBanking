@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Header from "@/components/layout/Header";
 import { PageLoader, ErrorBox } from "@/components/ui/Spinner";
 import { getAccounts, type Account } from "@/lib/api/accounting";
+import { getToken } from "@/lib/auth";
 import { formatCurrency, formatDate, today, startOfYear } from "@/lib/utils";
 
 const REPORTING_URL = process.env.NEXT_PUBLIC_REPORTING_URL ?? "http://localhost:8001";
@@ -25,8 +26,15 @@ export default function GeneralLedgerPage() {
     if (!accountCode) return;
     setLoading(true);
     setError("");
-    fetch(`${REPORTING_URL}/api/v1/reports/general-ledger?account_code=${accountCode}&start_date=${startDate}&end_date=${endDate}&size=500`)
-      .then((r) => r.json())
+    const token = getToken();
+    fetch(`${REPORTING_URL}/api/v1/reports/general-ledger?account_code=${accountCode}&start_date=${startDate}&end_date=${endDate}&size=500`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(typeof json?.detail === "string" ? json.detail : r.statusText);
+        return json;
+      })
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -61,7 +69,7 @@ export default function GeneralLedgerPage() {
         {error && <ErrorBox message={error} />}
         {loading && <PageLoader />}
 
-        {data && !loading && (
+        {data && !loading && data.movements && (
           <>
             <div className="flex items-center gap-6 p-4 card">
               <div>
