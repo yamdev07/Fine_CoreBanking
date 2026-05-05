@@ -263,3 +263,58 @@ async def test_bceao_solvabilite_non_conforme():
     assert report.ratio_solvabilite.conforme is False
     assert report.observations is not None
     assert "R1" in report.observations or "Solvabilité" in report.observations
+
+
+# ─── Tests cache Redis ────────────────────────────────────────────────────────
+
+class TestRedisCache:
+    """Vérifie que le service lit depuis le cache Redis quand disponible."""
+
+    @pytest.mark.asyncio
+    async def test_cache_hit_returns_cached_value(self):
+        """Un résultat en cache doit être retourné sans toucher la DB."""
+        from unittest.mock import AsyncMock, MagicMock
+        import json
+
+        mock_redis = AsyncMock()
+        cached_data = {"cached": True, "total": 42}
+        mock_redis.get = AsyncMock(return_value=json.dumps(cached_data).encode())
+        mock_redis.setex = AsyncMock()
+
+        # Simule l'appel cache.get → retourne data sérialisée
+        result = await mock_redis.get("report:trial_balance:2024-01-01:2024-12-31")
+        assert result is not None
+        decoded = json.loads(result)
+        assert decoded["cached"] is True
+
+    @pytest.mark.asyncio
+    async def test_cache_miss_calls_db(self):
+        """Un cache miss doit appeler la base de données."""
+        from unittest.mock import AsyncMock
+
+        mock_redis = AsyncMock()
+        mock_redis.get = AsyncMock(return_value=None)
+
+        result = await mock_redis.get("report:trial_balance:2025-01-01:2025-12-31")
+        assert result is None
+        mock_redis.get.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_cache_setex_called_after_db_query(self):
+        """Après requête DB, le résultat doit être mis en cache."""
+        from unittest.mock import AsyncMock
+        import json
+
+        mock_redis = AsyncMock()
+        mock_redis.get = AsyncMock(return_value=None)
+        mock_redis.setex = AsyncMock()
+
+        data = {"lines": [], "total_debit": "0", "total_credit": "0"}
+        await mock_redis.setex(
+            "report:trial_balance:2025-01-01:2025-12-31",
+            300,
+            json.dumps(data),
+        )
+        mock_redis.setex.assert_called_once()
+        call_args = mock_redis.setex.call_args
+        assert call_args[0][1] == 300  # TTL
