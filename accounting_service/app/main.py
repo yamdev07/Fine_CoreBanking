@@ -1,6 +1,7 @@
 """
 Point d'entrée principal — Microservice Comptabilité.
 """
+
 import asyncio
 from contextlib import asynccontextmanager
 
@@ -38,12 +39,14 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 
 # ─── Lifecycle ────────────────────────────────────────────────────────────────
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("accounting_service.starting", version=settings.APP_VERSION)
 
     # Seed admin par défaut
     from app.services.auth import seed_admin
+
     async with AsyncSessionFactory() as session:
         async with session.begin():
             await seed_admin(session)
@@ -51,6 +54,7 @@ async def lifespan(app: FastAPI):
     # Démarrer le consommateur Kafka en arrière-plan
     from app.services.kafka_consumer import run_consumer
     from app.services.kafka_producer import stop_producer
+
     kafka_task = asyncio.create_task(run_consumer())
 
     yield
@@ -110,6 +114,7 @@ app.add_middleware(
 
 
 # ─── Gestionnaires d'erreurs ──────────────────────────────────────────────────
+
 
 @app.exception_handler(AccountingBaseError)
 async def accounting_error_handler(request: Request, exc: AccountingBaseError):

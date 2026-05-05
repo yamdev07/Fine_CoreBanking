@@ -1,6 +1,7 @@
 """
 Gestion de la session base de données (async SQLAlchemy 2.0).
 """
+
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -16,7 +17,7 @@ engine = create_async_engine(
     pool_size=settings.DB_POOL_SIZE,
     max_overflow=settings.DB_MAX_OVERFLOW,
     echo=settings.DB_ECHO,
-    pool_pre_ping=True,   # Détecte les connexions mortes
+    pool_pre_ping=True,  # Détecte les connexions mortes
 )
 
 AsyncSessionFactory = async_sessionmaker(

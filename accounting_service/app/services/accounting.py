@@ -8,6 +8,7 @@ Règles fondamentales implémentées :
   4. Idempotence : un événement externe = une seule écriture
   5. Piste d'audit complète (qui, quoi, quand)
 """
+
 import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -79,6 +80,7 @@ class FiscalYearService:
 
     async def _generate_monthly_periods(self, fy: FiscalYear) -> None:
         from calendar import monthrange
+
         current = fy.start_date
         while current <= fy.end_date:
             month_end_day = monthrange(current.year, current.month)[1]
@@ -118,6 +120,7 @@ class FiscalYearService:
         fy.closed_by = closed_by
 
         from app.services.kafka_producer import publish_fiscal_year_closed
+
         await publish_fiscal_year_closed(fiscal_year_id=fy.id, fiscal_year_name=fy.name)
         return fy
 
@@ -188,6 +191,7 @@ class AccountService:
 
     async def deactivate(self, account_id: str) -> AccountPlan:
         from datetime import date as date_cls
+
         account = await self.repo.get_by_id(account_id)
         children = await self.repo.get_children(account_id)
         if children:
@@ -201,9 +205,7 @@ class AccountService:
             )
         return await self.repo.update(account, {"is_active": False})
 
-    async def get_balance(
-        self, account_id: str, start_date: date, end_date: date
-    ) -> dict:
+    async def get_balance(self, account_id: str, start_date: date, end_date: date) -> dict:
         account = await self.repo.get_by_id(account_id)
         balances = await self.repo.get_balance(account_id, start_date, end_date)
         total_debit = balances["total_debit"]
@@ -305,6 +307,7 @@ class JournalEntryService:
             account = accounts_by_id.get(line_data.account_id)
             if not account:
                 from app.core.exceptions import AccountNotFoundError
+
                 raise AccountNotFoundError(f"Compte {line_data.account_id} introuvable.")
             if not account.is_active:
                 raise AccountNotActiveError(f"Le compte {account.code} est inactif.")
@@ -350,9 +353,7 @@ class JournalEntryService:
         # Revérifier la période
         period = await self.period_repo.get_by_id(entry.period_id)
         if period.status != PeriodStatus.OPEN:
-            raise PeriodClosedError(
-                f"La période {period.name} est clôturée. Écriture impossible."
-            )
+            raise PeriodClosedError(f"La période {period.name} est clôturée. Écriture impossible.")
 
         entry.status = EntryStatus.POSTED
         entry.posted_by = posted_by
@@ -361,6 +362,7 @@ class JournalEntryService:
         await self.session.refresh(entry)
 
         from app.services.kafka_producer import publish_entry_posted
+
         await publish_entry_posted(
             entry_id=entry.id,
             entry_number=entry.entry_number,
@@ -465,9 +467,7 @@ class JournalEntryService:
         # Vérifier qu'aucune ligne n'est déjà lettrée
         already_lettered = [ln for ln in lines if ln.lettering_code]
         if already_lettered:
-            raise LineAlreadyLetteredError(
-                f"{len(already_lettered)} ligne(s) déjà lettrée(s)."
-            )
+            raise LineAlreadyLetteredError(f"{len(already_lettered)} ligne(s) déjà lettrée(s).")
 
         total_debit = sum(ln.debit_amount for ln in lines)
         total_credit = sum(ln.credit_amount for ln in lines)
@@ -516,21 +516,23 @@ class ReportService:
             total_debit += d
             total_credit += c
 
-            lines.append({
-                "account_code": row["account_code"],
-                "account_name": row["account_name"],
-                "account_class": AccountClass[row["account_class"]],
-                "account_type": row["account_type"],
-                "opening_debit": Decimal("0"),
-                "opening_credit": Decimal("0"),
-                "period_debit": d,
-                "period_credit": c,
-                "cumulative_debit": d,
-                "cumulative_credit": c,
-                "closing_debit": d if d > c else Decimal("0"),
-                "closing_credit": c if c > d else Decimal("0"),
-                "currency": row["currency"],
-            })
+            lines.append(
+                {
+                    "account_code": row["account_code"],
+                    "account_name": row["account_name"],
+                    "account_class": AccountClass[row["account_class"]],
+                    "account_type": row["account_type"],
+                    "opening_debit": Decimal("0"),
+                    "opening_credit": Decimal("0"),
+                    "period_debit": d,
+                    "period_credit": c,
+                    "cumulative_debit": d,
+                    "cumulative_credit": c,
+                    "closing_debit": d if d > c else Decimal("0"),
+                    "closing_credit": c if c > d else Decimal("0"),
+                    "currency": row["currency"],
+                }
+            )
 
         return {
             "period_start": start_date,
@@ -542,9 +544,7 @@ class ReportService:
             "is_balanced": total_debit == total_credit,
         }
 
-    async def general_ledger(
-        self, account_id: str, start_date: date, end_date: date
-    ) -> dict:
+    async def general_ledger(self, account_id: str, start_date: date, end_date: date) -> dict:
         """Grand livre d'un compte avec solde progressif."""
         account = await self.account_repo.get_by_id(account_id)
         rows = await self.entry_repo.get_general_ledger(account_id, start_date, end_date)
@@ -565,17 +565,19 @@ class ReportService:
             else:
                 running_balance += c - d
 
-            lines.append({
-                "entry_number": row["entry_number"],
-                "entry_date": row["entry_date"],
-                "value_date": row["value_date"],
-                "description": row["description"],
-                "reference": row.get("reference"),
-                "debit_amount": d,
-                "credit_amount": c,
-                "running_balance": running_balance,
-                "balance_nature": account.account_nature.value,
-            })
+            lines.append(
+                {
+                    "entry_number": row["entry_number"],
+                    "entry_date": row["entry_date"],
+                    "value_date": row["value_date"],
+                    "description": row["description"],
+                    "reference": row.get("reference"),
+                    "debit_amount": d,
+                    "credit_amount": c,
+                    "running_balance": running_balance,
+                    "balance_nature": account.account_nature.value,
+                }
+            )
 
         return {
             "account_code": account.code,

@@ -1,6 +1,7 @@
 """
 Schémas Pydantic v2 — Validation des entrées/sorties API.
 """
+
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Generic, TypeVar
@@ -45,6 +46,7 @@ class PaginatedResponse(BaseModel, Generic[_T]):
 
 # ─── Exercice fiscal ──────────────────────────────────────────────────────────
 
+
 class FiscalYearCreate(BaseModel):
     name: str = Field(..., min_length=4, max_length=20, examples=["2024"])
     start_date: date
@@ -72,6 +74,7 @@ class FiscalYearResponse(BaseModel):
 
 # ─── Période comptable ────────────────────────────────────────────────────────
 
+
 class PeriodCreate(BaseModel):
     fiscal_year_id: str
     name: str = Field(..., examples=["2024-01"])
@@ -98,6 +101,7 @@ class PeriodResponse(BaseModel):
 
 
 # ─── Compte comptable ─────────────────────────────────────────────────────────
+
 
 class AccountCreate(BaseModel):
     code: str = Field(..., min_length=1, max_length=20, pattern=r"^\d+$")
@@ -152,19 +156,21 @@ class AccountResponse(BaseModel):
 
 class AccountBalanceResponse(BaseModel):
     """Solde d'un compte à une date donnée."""
+
     account_id: str
     account_code: str
     account_name: str
     account_nature: AccountNature
     total_debit: Decimal
     total_credit: Decimal
-    balance: Decimal          # Positif = sens normal, Négatif = sens inverse
-    balance_nature: str       # "DEBITEUR" ou "CREDITEUR"
+    balance: Decimal  # Positif = sens normal, Négatif = sens inverse
+    balance_nature: str  # "DEBITEUR" ou "CREDITEUR"
     currency: str
     as_of_date: date
 
 
 # ─── Journal ──────────────────────────────────────────────────────────────────
+
 
 class JournalCreate(BaseModel):
     code: str = Field(..., min_length=2, max_length=10)
@@ -187,6 +193,7 @@ class JournalResponse(BaseModel):
 
 
 # ─── Lignes d'écriture ────────────────────────────────────────────────────────
+
 
 class JournalLineCreate(BaseModel):
     account_id: str
@@ -211,7 +218,7 @@ class JournalLineResponse(BaseModel):
 
     id: str
     account_id: str
-    account_code: str | None = None   # Joint optionnel
+    account_code: str | None = None  # Joint optionnel
     account_name: str | None = None
     line_number: int
     debit_amount: Decimal
@@ -226,10 +233,11 @@ class JournalLineResponse(BaseModel):
 
 # ─── Écriture comptable ───────────────────────────────────────────────────────
 
+
 class JournalEntryCreate(BaseModel):
     journal_id: str
     entry_date: date
-    value_date: date | None = None   # Par défaut = entry_date
+    value_date: date | None = None  # Par défaut = entry_date
     reference: str | None = Field(None, max_length=100)
     description: str = Field(..., min_length=2, max_length=500)
     currency: str = Field(default="XOF", min_length=3, max_length=3)
@@ -277,6 +285,7 @@ class JournalEntryResponse(BaseModel):
 
 # ─── Rapports ─────────────────────────────────────────────────────────────────
 
+
 class TrialBalanceLine(BaseModel):
     account_code: str
     account_name: str
@@ -288,20 +297,21 @@ class TrialBalanceLine(BaseModel):
     period_credit: Decimal
     cumulative_debit: Decimal
     cumulative_credit: Decimal
-    closing_debit: Decimal    # Solde débiteur final
-    closing_credit: Decimal   # Solde créditeur final
+    closing_debit: Decimal  # Solde débiteur final
+    closing_credit: Decimal  # Solde créditeur final
     currency: str
 
 
 class TrialBalanceResponse(BaseModel):
     """Balance générale des comptes."""
+
     period_start: date
     period_end: date
     generated_at: datetime
     lines: list[TrialBalanceLine]
     total_debit: Decimal
     total_credit: Decimal
-    is_balanced: bool   # total_debit == total_credit
+    is_balanced: bool  # total_debit == total_credit
 
 
 class LedgerLine(BaseModel):
@@ -318,6 +328,7 @@ class LedgerLine(BaseModel):
 
 class GeneralLedgerResponse(BaseModel):
     """Grand livre d'un compte."""
+
     account_code: str
     account_name: str
     account_nature: AccountNature
@@ -332,6 +343,7 @@ class GeneralLedgerResponse(BaseModel):
 
 
 # ─── Lettrage ─────────────────────────────────────────────────────────────────
+
 
 class LetteringRequest(BaseModel):
     line_ids: list[str] = Field(..., min_length=2)

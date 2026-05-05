@@ -9,6 +9,7 @@ Exemples d'événements traités :
   - savings.events : SAVINGS_DEPOSIT, SAVINGS_WITHDRAWAL, INTEREST_CREDITED
   - cash.events    : CASH_DEPOSIT, CASH_WITHDRAWAL, CASH_TRANSFER
 """
+
 import json
 import logging
 from dataclasses import dataclass
@@ -31,9 +32,9 @@ logger = logging.getLogger(__name__)
 # Mapping strict topic → service autorisé.
 # Un message sur credit.events provenant d'un autre service est rejeté.
 TOPIC_ALLOWED_SOURCES: dict[str, str] = {
-    settings.KAFKA_TOPIC_CREDIT_EVENTS:  "credit-service",
+    settings.KAFKA_TOPIC_CREDIT_EVENTS: "credit-service",
     settings.KAFKA_TOPIC_SAVINGS_EVENTS: "savings-service",
-    settings.KAFKA_TOPIC_CASH_EVENTS:    "cash-service",
+    settings.KAFKA_TOPIC_CASH_EVENTS: "cash-service",
 }
 
 
@@ -208,9 +209,7 @@ class AccountingRules:
     }
 
     @classmethod
-    def get_movements(
-        cls, event_type: EventType, payload: dict
-    ) -> list[tuple[str, str, Decimal]]:
+    def get_movements(cls, event_type: EventType, payload: dict) -> list[tuple[str, str, Decimal]]:
         rule = cls.RULE_MAP.get(event_type)
         if not rule:
             raise ValueError(f"Aucune règle de comptabilisation pour {event_type}")
@@ -238,9 +237,7 @@ async def process_event(event: AccountingEvent, session: AsyncSession) -> None:
                 f"Compte {code} introuvable dans le plan — événement {event.event_id} rejeté."
             )
         if not account.is_active:
-            raise ValueError(
-                f"Compte {code} inactif — événement {event.event_id} rejeté."
-            )
+            raise ValueError(f"Compte {code} inactif — événement {event.event_id} rejeté.")
 
         lines.append(
             JournalLineCreate(
@@ -286,7 +283,9 @@ async def process_event(event: AccountingEvent, session: AsyncSession) -> None:
     await svc.post_entry(entry.id, posted_by="kafka-consumer")
     logger.info(
         "Écriture %s générée depuis l'événement %s/%s",
-        entry.entry_number, event.source_service, event.event_id,
+        entry.entry_number,
+        event.source_service,
+        event.event_id,
     )
 
 
@@ -319,7 +318,9 @@ async def run_consumer() -> None:
                 if declared_source != expected_source:
                     logger.warning(
                         "Kafka source mismatch — topic=%s déclaré=%s attendu=%s — message rejeté",
-                        topic, declared_source, expected_source,
+                        topic,
+                        declared_source,
+                        expected_source,
                     )
                     # Ne pas commiter : message potentiellement forgé, laisser en queue
                     continue
@@ -327,7 +328,7 @@ async def run_consumer() -> None:
                 event = AccountingEvent(
                     event_id=raw["event_id"],
                     event_type=EventType(raw["event_type"]),
-                    source_service=expected_source,   # source fiable (topic), pas le payload
+                    source_service=expected_source,  # source fiable (topic), pas le payload
                     occurred_at=raw["occurred_at"],
                     payload=raw.get("payload", {}),
                 )
@@ -340,8 +341,7 @@ async def run_consumer() -> None:
 
             except Exception as exc:
                 logger.exception(
-                    "Erreur traitement événement %s: %s",
-                    raw.get("event_id", "?"), exc
+                    "Erreur traitement événement %s: %s", raw.get("event_id", "?"), exc
                 )
                 # On continue pour ne pas bloquer la file — Dead Letter Queue à implémenter
     finally:

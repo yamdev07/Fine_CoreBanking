@@ -1,6 +1,7 @@
 """
 Endpoints d'authentification.
 """
+
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from slowapi import Limiter
@@ -48,9 +49,8 @@ async def me(
     session: AsyncSession = Depends(get_session),
 ):
     from sqlalchemy import select
-    result = await session.execute(
-        select(User).where(User.id == principal.sub)
-    )
+
+    result = await session.execute(select(User).where(User.id == principal.sub))
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(

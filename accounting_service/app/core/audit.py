@@ -2,6 +2,7 @@
 Middleware d'audit — enregistre toutes les mutations (POST/PUT/PATCH/DELETE).
 Chaque écriture est non-bloquante (fire-and-forget via asyncio.create_task).
 """
+
 import time
 
 import structlog
@@ -47,6 +48,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
 
         # Persist asynchronously to avoid slowing down the response
         import asyncio
+
         asyncio.create_task(
             _persist_audit(
                 user_id=user_id,

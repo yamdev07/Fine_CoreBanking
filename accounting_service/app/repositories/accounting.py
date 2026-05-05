@@ -2,6 +2,7 @@
 Repositories — Couche d'accès aux données.
 Pattern Repository : isole la logique SQL de la logique métier.
 """
+
 from datetime import date
 from typing import Any
 
@@ -136,9 +137,7 @@ class AccountRepository:
             filters.append(AccountPlan.is_leaf == is_leaf)
         if search:
             pattern = f"%{search}%"
-            filters.append(
-                AccountPlan.code.ilike(pattern) | AccountPlan.name.ilike(pattern)
-            )
+            filters.append(AccountPlan.code.ilike(pattern) | AccountPlan.name.ilike(pattern))
 
         if filters:
             stmt = stmt.where(and_(*filters))
@@ -187,6 +186,7 @@ class AccountRepository:
 
     async def update(self, account: AccountPlan, data: dict[str, Any]) -> AccountPlan:
         from app.core.exceptions import OptimisticLockError
+
         current_version = account.version
         stmt = (
             update(AccountPlan)
@@ -334,11 +334,15 @@ class JournalEntryRepository:
             ORDER BY ap.code
         """
         rows = (
-            await self.session.execute(
-                text(stmt),
-                {"start_date": str(start_date), "end_date": str(end_date)},
+            (
+                await self.session.execute(
+                    text(stmt),
+                    {"start_date": str(start_date), "end_date": str(end_date)},
+                )
             )
-        ).mappings().all()
+            .mappings()
+            .all()
+        )
         return [dict(r) for r in rows]
 
     async def get_general_ledger(
@@ -364,13 +368,17 @@ class JournalEntryRepository:
         # UUID(as_uuid=False) stores without hyphens in SQLite; strip them so
         # text() comparisons work on both SQLite (tests) and PostgreSQL (prod).
         rows = (
-            await self.session.execute(
-                text(stmt),
-                {
-                    "account_id": account_id.replace("-", ""),
-                    "start_date": str(start_date),
-                    "end_date": str(end_date),
-                },
+            (
+                await self.session.execute(
+                    text(stmt),
+                    {
+                        "account_id": account_id.replace("-", ""),
+                        "start_date": str(start_date),
+                        "end_date": str(end_date),
+                    },
+                )
             )
-        ).mappings().all()
+            .mappings()
+            .all()
+        )
         return [dict(r) for r in rows]

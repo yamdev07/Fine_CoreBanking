@@ -1,6 +1,7 @@
 """
 Shared test fixtures — unit tests and API integration tests.
 """
+
 import os
 import uuid
 from collections.abc import AsyncGenerator
@@ -34,21 +35,22 @@ from app.services.auth import hash_password
 
 # ─── Fixed test IDs (deterministic across fixtures) ──────────────────────────
 
-ADMIN_ID       = "10000000-0000-0000-0000-000000000001"
-ACCOUNTANT_ID  = "10000000-0000-0000-0000-000000000002"
-AUDITOR_ID     = "10000000-0000-0000-0000-000000000003"
+ADMIN_ID = "10000000-0000-0000-0000-000000000001"
+ACCOUNTANT_ID = "10000000-0000-0000-0000-000000000002"
+AUDITOR_ID = "10000000-0000-0000-0000-000000000003"
 
-CAISSE_JOURNAL_ID   = "20000000-0000-0000-0000-000000000001"
+CAISSE_JOURNAL_ID = "20000000-0000-0000-0000-000000000001"
 EXTOURNE_JOURNAL_ID = "20000000-0000-0000-0000-000000000002"
 
-CASH_ACCOUNT_ID   = "30000000-0000-0000-0000-000000000001"
+CASH_ACCOUNT_ID = "30000000-0000-0000-0000-000000000001"
 CREDIT_ACCOUNT_ID = "30000000-0000-0000-0000-000000000002"
 
 FISCAL_YEAR_ID = "40000000-0000-0000-0000-000000000001"
-PERIOD_ID      = "50000000-0000-0000-0000-000000000001"
+PERIOD_ID = "50000000-0000-0000-0000-000000000001"
 
 
 # ─── SQLite engine (file-based per test for guaranteed isolation) ─────────────
+
 
 @pytest_asyncio.fixture
 async def engine():
@@ -80,6 +82,7 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
 
 
 # ─── JWT helpers ──────────────────────────────────────────────────────────────
+
 
 def make_token(user_id: str, role: str, expired: bool = False) -> str:
     delta = -3600 if expired else 3600
@@ -113,60 +116,97 @@ def expired_token_headers() -> dict:
 
 # ─── Seed helpers ─────────────────────────────────────────────────────────────
 
+
 async def seed_base_data(session: AsyncSession) -> None:
     """Insert minimum data required by API tests (idempotent)."""
     # Clear in FK-safe reverse order before re-seeding
     for table in reversed(Base.metadata.sorted_tables):
         await session.execute(delete(table))
 
-    session.add_all([
-        User(
-            id=ADMIN_ID, username="admin", full_name="Admin Test",
-            email="admin@test.local", hashed_password=hash_password("Admin1234!"),
-            role=UserRole.ADMIN, is_active=True,
-        ),
-        User(
-            id=ACCOUNTANT_ID, username="accountant", full_name="Accountant Test",
-            email="accountant@test.local", hashed_password=hash_password("Acc1234!"),
-            role=UserRole.ACCOUNTANT, is_active=True,
-        ),
-        User(
-            id=AUDITOR_ID, username="auditor", full_name="Auditor Test",
-            email="auditor@test.local", hashed_password=hash_password("Aud1234!"),
-            role=UserRole.AUDITOR, is_active=True,
-        ),
-        Journal(
-            id=CAISSE_JOURNAL_ID, code="CJ", name="Journal Caisse",
-            journal_type=JournalCode.CJ, sequence_prefix="CJ-", last_sequence=0,
-        ),
-        Journal(
-            id=EXTOURNE_JOURNAL_ID, code="EX", name="Extournes",
-            journal_type=JournalCode.EX, sequence_prefix="EX-", last_sequence=0,
-        ),
-        AccountPlan(
-            id=CASH_ACCOUNT_ID, code="571100", name="Caisse principale",
-            account_class=AccountClass.TRESORERIE, account_type=AccountType.ACTIF,
-            account_nature=AccountNature.DEBITEUR, currency="XOF",
-        ),
-        AccountPlan(
-            id=CREDIT_ACCOUNT_ID, code="251100", name="Crédits court terme",
-            account_class=AccountClass.TIERS, account_type=AccountType.ACTIF,
-            account_nature=AccountNature.DEBITEUR, currency="XOF",
-        ),
-        FiscalYear(
-            id=FISCAL_YEAR_ID, name="2024",
-            start_date=date(2024, 1, 1), end_date=date(2024, 12, 31),
-        ),
-        AccountingPeriod(
-            id=PERIOD_ID, fiscal_year_id=FISCAL_YEAR_ID, name="2024-01",
-            start_date=date(2024, 1, 1), end_date=date(2024, 1, 31),
-            status=PeriodStatus.OPEN,
-        ),
-    ])
+    session.add_all(
+        [
+            User(
+                id=ADMIN_ID,
+                username="admin",
+                full_name="Admin Test",
+                email="admin@test.local",
+                hashed_password=hash_password("Admin1234!"),
+                role=UserRole.ADMIN,
+                is_active=True,
+            ),
+            User(
+                id=ACCOUNTANT_ID,
+                username="accountant",
+                full_name="Accountant Test",
+                email="accountant@test.local",
+                hashed_password=hash_password("Acc1234!"),
+                role=UserRole.ACCOUNTANT,
+                is_active=True,
+            ),
+            User(
+                id=AUDITOR_ID,
+                username="auditor",
+                full_name="Auditor Test",
+                email="auditor@test.local",
+                hashed_password=hash_password("Aud1234!"),
+                role=UserRole.AUDITOR,
+                is_active=True,
+            ),
+            Journal(
+                id=CAISSE_JOURNAL_ID,
+                code="CJ",
+                name="Journal Caisse",
+                journal_type=JournalCode.CJ,
+                sequence_prefix="CJ-",
+                last_sequence=0,
+            ),
+            Journal(
+                id=EXTOURNE_JOURNAL_ID,
+                code="EX",
+                name="Extournes",
+                journal_type=JournalCode.EX,
+                sequence_prefix="EX-",
+                last_sequence=0,
+            ),
+            AccountPlan(
+                id=CASH_ACCOUNT_ID,
+                code="571100",
+                name="Caisse principale",
+                account_class=AccountClass.TRESORERIE,
+                account_type=AccountType.ACTIF,
+                account_nature=AccountNature.DEBITEUR,
+                currency="XOF",
+            ),
+            AccountPlan(
+                id=CREDIT_ACCOUNT_ID,
+                code="251100",
+                name="Crédits court terme",
+                account_class=AccountClass.TIERS,
+                account_type=AccountType.ACTIF,
+                account_nature=AccountNature.DEBITEUR,
+                currency="XOF",
+            ),
+            FiscalYear(
+                id=FISCAL_YEAR_ID,
+                name="2024",
+                start_date=date(2024, 1, 1),
+                end_date=date(2024, 12, 31),
+            ),
+            AccountingPeriod(
+                id=PERIOD_ID,
+                fiscal_year_id=FISCAL_YEAR_ID,
+                name="2024-01",
+                start_date=date(2024, 1, 1),
+                end_date=date(2024, 1, 31),
+                status=PeriodStatus.OPEN,
+            ),
+        ]
+    )
     await session.flush()
 
 
 # ─── API Client ───────────────────────────────────────────────────────────────
+
 
 @pytest_asyncio.fixture
 async def api_client(engine):

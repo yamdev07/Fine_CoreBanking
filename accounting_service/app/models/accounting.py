@@ -12,6 +12,7 @@ Plan de comptes (PCG adapté SYSCOHADA/BCEAO) :
   Classe 8 : Comptes spéciaux
   Classe 9 : Comptes analytiques
 """
+
 import enum
 import uuid
 from datetime import date, datetime
@@ -31,9 +32,9 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Uuid,
     func,
 )
-from sqlalchemy import Uuid
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -46,6 +47,7 @@ def new_uuid() -> str:
 
 
 # ─── Enums ───────────────────────────────────────────────────────────────────
+
 
 class AccountClass(enum.StrEnum):
     CAPITAL = "1"
@@ -68,28 +70,29 @@ class AccountType(enum.StrEnum):
 
 class AccountNature(enum.StrEnum):
     """Sens normal du solde."""
-    DEBITEUR = "DEBITEUR"   # Actifs, Charges
+
+    DEBITEUR = "DEBITEUR"  # Actifs, Charges
     CREDITEUR = "CREDITEUR"  # Passifs, Produits
 
 
 class JournalCode(enum.StrEnum):
-    GJ = "GJ"    # Journal Général
-    CJ = "CJ"    # Journal de Caisse
-    BJ = "BJ"    # Journal de Banque
-    OD = "OD"    # Opérations Diverses
-    AN = "AN"    # À-Nouveau (report exercice)
-    EX = "EX"    # Extourne
-    CR = "CR"    # Crédits
-    EP = "EP"    # Épargne
-    IB = "IB"    # Interbancaire (banque commerciale)
-    TR = "TR"    # Titres et valeurs mobilières
-    LC = "LC"    # Lettres de crédit / engagements hors-bilan
-    FX = "FX"    # Change et devises
+    GJ = "GJ"  # Journal Général
+    CJ = "CJ"  # Journal de Caisse
+    BJ = "BJ"  # Journal de Banque
+    OD = "OD"  # Opérations Diverses
+    AN = "AN"  # À-Nouveau (report exercice)
+    EX = "EX"  # Extourne
+    CR = "CR"  # Crédits
+    EP = "EP"  # Épargne
+    IB = "IB"  # Interbancaire (banque commerciale)
+    TR = "TR"  # Titres et valeurs mobilières
+    LC = "LC"  # Lettres de crédit / engagements hors-bilan
+    FX = "FX"  # Change et devises
 
 
 class EntryStatus(enum.StrEnum):
-    DRAFT = "DRAFT"       # Brouillon (modifiable)
-    POSTED = "POSTED"     # Validé (immuable)
+    DRAFT = "DRAFT"  # Brouillon (modifiable)
+    POSTED = "POSTED"  # Validé (immuable)
     REVERSED = "REVERSED"  # Extourné
 
 
@@ -107,11 +110,12 @@ class FiscalYearStatus(enum.StrEnum):
 
 # ─── Exercice fiscal ─────────────────────────────────────────────────────────
 
+
 class FiscalYear(Base):
     __tablename__ = "fiscal_years"
 
     id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_uuid)
-    name: Mapped[str] = mapped_column(String(20), nullable=False)         # ex: "2024"
+    name: Mapped[str] = mapped_column(String(20), nullable=False)  # ex: "2024"
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[FiscalYearStatus] = mapped_column(
@@ -119,9 +123,7 @@ class FiscalYear(Base):
     )
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     closed_by: Mapped[str | None] = mapped_column(String(100))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     periods: Mapped[list["AccountingPeriod"]] = relationship(
         back_populates="fiscal_year", cascade="all, delete-orphan"
@@ -135,6 +137,7 @@ class FiscalYear(Base):
 
 # ─── Période comptable ────────────────────────────────────────────────────────
 
+
 class AccountingPeriod(Base):
     __tablename__ = "accounting_periods"
 
@@ -142,7 +145,7 @@ class AccountingPeriod(Base):
     fiscal_year_id: Mapped[str] = mapped_column(
         Uuid(as_uuid=False), ForeignKey("fiscal_years.id"), nullable=False
     )
-    name: Mapped[str] = mapped_column(String(20), nullable=False)   # ex: "2024-01"
+    name: Mapped[str] = mapped_column(String(20), nullable=False)  # ex: "2024-01"
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[PeriodStatus] = mapped_column(
@@ -163,12 +166,14 @@ class AccountingPeriod(Base):
 
 # ─── Plan de comptes ──────────────────────────────────────────────────────────
 
+
 class AccountPlan(Base):
     """Plan de comptes — hiérarchie arborescente (auto-référentielle)."""
+
     __tablename__ = "account_plans"
 
     id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_uuid)
-    code: Mapped[str] = mapped_column(String(20), nullable=False)   # ex: "411100"
+    code: Mapped[str] = mapped_column(String(20), nullable=False)  # ex: "411100"
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     short_name: Mapped[str | None] = mapped_column(String(50))
 
@@ -194,9 +199,7 @@ class AccountPlan(Base):
     # Contraintes budgétaires optionnelles
     budget_amount: Mapped[Decimal | None] = mapped_column(Numeric(20, 4))
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -205,9 +208,7 @@ class AccountPlan(Base):
     parent: Mapped["AccountPlan | None"] = relationship(
         "AccountPlan", remote_side="AccountPlan.id", back_populates="children"
     )
-    children: Mapped[list["AccountPlan"]] = relationship(
-        "AccountPlan", back_populates="parent"
-    )
+    children: Mapped[list["AccountPlan"]] = relationship("AccountPlan", back_populates="parent")
     ledger_lines: Mapped[list["JournalLine"]] = relationship(back_populates="account")
 
     __table_args__ = (
@@ -223,8 +224,10 @@ class AccountPlan(Base):
 
 # ─── Journal comptable ────────────────────────────────────────────────────────
 
+
 class Journal(Base):
     """Journaux auxiliaires (Caisse, Banque, Crédits, Épargne, OD, ...)."""
+
     __tablename__ = "journals"
 
     id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_uuid)
@@ -236,9 +239,7 @@ class Journal(Base):
     last_sequence: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
     sequence_prefix: Mapped[str] = mapped_column(String(10), nullable=False, default="")
     description: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     entries: Mapped[list["JournalEntry"]] = relationship(back_populates="journal")
 
@@ -247,11 +248,13 @@ class Journal(Base):
 
 # ─── Écriture comptable (en-tête) ─────────────────────────────────────────────
 
+
 class JournalEntry(Base):
     """
     En-tête d'écriture comptable.
     Règle fondamentale : ΣDébit = ΣCrédit (partie double).
     """
+
     __tablename__ = "journal_entries"
 
     id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_uuid)
@@ -292,9 +295,7 @@ class JournalEntry(Base):
     source_service: Mapped[str | None] = mapped_column(String(50))  # ex: "credit-service"
     source_event_id: Mapped[str | None] = mapped_column(String(100))  # Idempotence
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -320,19 +321,20 @@ class JournalEntry(Base):
         Index("ix_entry_status", "status"),
         Index("ix_entry_period", "period_id"),
         CheckConstraint(
-            "status != 'POSTED' OR total_debit = total_credit",
-            name="ck_entry_balanced_when_posted"
+            "status != 'POSTED' OR total_debit = total_credit", name="ck_entry_balanced_when_posted"
         ),
     )
 
 
 # ─── Ligne d'écriture ─────────────────────────────────────────────────────────
 
+
 class JournalLine(Base):
     """
     Ligne d'écriture (mouvement élémentaire sur un compte).
     Un mouvement est soit Débit, soit Crédit — jamais les deux.
     """
+
     __tablename__ = "journal_lines"
 
     id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_uuid)
@@ -359,9 +361,7 @@ class JournalLine(Base):
     lettered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     lettered_by: Mapped[str | None] = mapped_column(String(100))
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     entry: Mapped["JournalEntry"] = relationship(back_populates="lines")
     account: Mapped["AccountPlan"] = relationship(back_populates="ledger_lines")
@@ -369,7 +369,7 @@ class JournalLine(Base):
     __table_args__ = (
         CheckConstraint(
             "(debit_amount > 0 AND credit_amount = 0) OR (credit_amount > 0 AND debit_amount = 0)",
-            name="ck_line_debit_xor_credit"
+            name="ck_line_debit_xor_credit",
         ),
         CheckConstraint("debit_amount >= 0 AND credit_amount >= 0", name="ck_line_positive"),
         Index("ix_line_account", "account_id"),

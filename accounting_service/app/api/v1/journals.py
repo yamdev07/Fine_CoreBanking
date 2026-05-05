@@ -1,6 +1,7 @@
 """
 Router — Journaux et Écritures comptables
 """
+
 import math
 from datetime import date
 
@@ -94,7 +95,10 @@ async def list_entries(
         period_id, status=status_enum, offset=(page - 1) * size, limit=size
     )
     return PaginatedResponse(
-        items=items, total=total, page=page, size=size,
+        items=items,
+        total=total,
+        page=page,
+        size=size,
         pages=math.ceil(total / size) if total > 0 else 0,
     )
 
@@ -128,7 +132,11 @@ async def post_entry(
         return await svc.entry_repo.get_by_id(entry.id, with_lines=True)
     except JournalEntryNotFoundError as e:
         raise HTTPException(status_code=404, detail=e.message)
-    except (JournalEntryAlreadyPostedError, JournalEntryAlreadyReversedError, PeriodClosedError) as e:
+    except (
+        JournalEntryAlreadyPostedError,
+        JournalEntryAlreadyReversedError,
+        PeriodClosedError,
+    ) as e:
         raise HTTPException(status_code=422, detail=e.message)
 
 

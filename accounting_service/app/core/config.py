@@ -2,6 +2,7 @@
 Configuration centrale du microservice comptabilité.
 Chargée depuis les variables d'environnement (12-Factor App).
 """
+
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict

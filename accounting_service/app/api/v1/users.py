@@ -1,6 +1,7 @@
 """
 Gestion des utilisateurs — Endpoints CRUD (AdminOnly).
 """
+
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -26,7 +27,9 @@ async def list_users(
     return [UserOut.model_validate(u) for u in result.scalars().all()]
 
 
-@router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED, summary="Créer un utilisateur")
+@router.post(
+    "", response_model=UserOut, status_code=status.HTTP_201_CREATED, summary="Créer un utilisateur"
+)
 async def create_user(
     body: UserCreate,
     principal: AdminOnly,
@@ -39,7 +42,10 @@ async def create_user(
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail={"error_code": "USER_EXISTS", "message": "Nom d'utilisateur ou email déjà utilisé."},
+            detail={
+                "error_code": "USER_EXISTS",
+                "message": "Nom d'utilisateur ou email déjà utilisé.",
+            },
         )
     user = User(
         username=body.username,
@@ -86,7 +92,9 @@ async def update_user(
     return UserOut.model_validate(user)
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Désactiver un utilisateur")
+@router.delete(
+    "/{user_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Désactiver un utilisateur"
+)
 async def deactivate_user(
     user_id: str,
     principal: AdminOnly,
@@ -95,7 +103,10 @@ async def deactivate_user(
     if user_id == principal.sub:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"error_code": "SELF_DEACTIVATION", "message": "Impossible de se désactiver soi-même."},
+            detail={
+                "error_code": "SELF_DEACTIVATION",
+                "message": "Impossible de se désactiver soi-même.",
+            },
         )
     user = await _get_or_404(session, user_id)
     user.is_active = False
