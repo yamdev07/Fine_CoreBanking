@@ -2,8 +2,8 @@
 Router — Tous les rapports financiers.
 Endpoints en lecture seule, avec cache Redis et export PDF/Excel.
 """
+
 from datetime import date
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
@@ -13,10 +13,17 @@ from app.core.config import settings
 from app.core.security import get_current_principal
 from app.db.session import get_session
 from app.schemas.reports import (
-    BilanReport, BceaoReport, CompteDeResultatReport,
-    CreditPortfolioReport, DashboardReport, DepositReport,
-    ExportFormat, FluxTresorerieReport,
-    GeneralLedgerReport, JournalCentralisateurReport, TrialBalanceReport,
+    BceaoReport,
+    BilanReport,
+    CompteDeResultatReport,
+    CreditPortfolioReport,
+    DashboardReport,
+    DepositReport,
+    ExportFormat,
+    FluxTresorerieReport,
+    GeneralLedgerReport,
+    JournalCentralisateurReport,
+    TrialBalanceReport,
 )
 from app.services.reporting import ReportingService
 from app.utils.cache import get_cached, make_cache_key, set_cached
@@ -34,6 +41,7 @@ def get_service(session: AsyncSession = Depends(get_session)) -> ReportingServic
 
 # ─── 1. Balance générale ──────────────────────────────────────────────────────
 
+
 @router.get(
     "/trial-balance",
     response_model=TrialBalanceReport,
@@ -50,9 +58,7 @@ async def trial_balance(
     format: ExportFormat = Query(ExportFormat.JSON),
     svc: ReportingService = Depends(get_service),
 ):
-    cache_key = make_cache_key("trial_balance", {
-        "start": str(start_date), "end": str(end_date)
-    })
+    cache_key = make_cache_key("trial_balance", {"start": str(start_date), "end": str(end_date)})
     cached = await get_cached(cache_key)
 
     if cached and format == ExportFormat.JSON:
@@ -64,6 +70,7 @@ async def trial_balance(
 
     if format == ExportFormat.EXCEL:
         from app.utils.exporters import export_trial_balance_excel
+
         content = export_trial_balance_excel(report_dict)
         filename = f"balance_{start_date}_{end_date}.xlsx"
         return Response(
@@ -74,6 +81,7 @@ async def trial_balance(
 
     if format == ExportFormat.PDF:
         from app.utils.exporters import export_generic_pdf
+
         content = export_generic_pdf(report_dict, "Balance Générale")
         filename = f"balance_{start_date}_{end_date}.pdf"
         return Response(
@@ -86,6 +94,7 @@ async def trial_balance(
 
 
 # ─── 2. Grand livre ───────────────────────────────────────────────────────────
+
 
 @router.get(
     "/general-ledger",
@@ -119,6 +128,7 @@ async def general_ledger(
 
 # ─── 3. Bilan comptable ───────────────────────────────────────────────────────
 
+
 @router.get(
     "/balance-sheet",
     response_model=BilanReport,
@@ -145,9 +155,11 @@ async def balance_sheet(
 
     if format == ExportFormat.PDF:
         from app.utils.exporters import export_generic_pdf
+
         content = export_generic_pdf(report_dict, "Bilan Comptable")
         return Response(
-            content=content, media_type="application/pdf",
+            content=content,
+            media_type="application/pdf",
             headers={"Content-Disposition": f'attachment; filename="bilan_{as_of_date}.pdf"'},
         )
 
@@ -155,6 +167,7 @@ async def balance_sheet(
 
 
 # ─── 4. Compte de résultat ────────────────────────────────────────────────────
+
 
 @router.get(
     "/income-statement",
@@ -172,9 +185,7 @@ async def income_statement(
     format: ExportFormat = Query(ExportFormat.JSON),
     svc: ReportingService = Depends(get_service),
 ):
-    cache_key = make_cache_key("resultat", {
-        "start": str(start_date), "end": str(end_date)
-    })
+    cache_key = make_cache_key("resultat", {"start": str(start_date), "end": str(end_date)})
     cached = await get_cached(cache_key)
     if cached and format == ExportFormat.JSON:
         return cached
@@ -185,15 +196,20 @@ async def income_statement(
 
     if format == ExportFormat.PDF:
         from app.utils.exporters import export_generic_pdf
+
         content = export_generic_pdf(report_dict, "Compte de Résultat")
         filename = f"resultat_{start_date}_{end_date}.pdf"
-        return Response(content=content, media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+        return Response(
+            content=content,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
 
     return report
 
 
 # ─── 5. Flux de trésorerie ────────────────────────────────────────────────────
+
 
 @router.get(
     "/cash-flow",
@@ -215,6 +231,7 @@ async def cash_flow(
 
 
 # ─── 6. Portefeuille crédits ──────────────────────────────────────────────────
+
 
 @router.get(
     "/credit-portfolio",
@@ -242,6 +259,7 @@ async def credit_portfolio(
 
 # ─── 7. État des dépôts ───────────────────────────────────────────────────────
 
+
 @router.get(
     "/deposits",
     response_model=DepositReport,
@@ -261,6 +279,7 @@ async def deposits(
 
 
 # ─── 8. Tableau de bord exécutif ─────────────────────────────────────────────
+
 
 @router.get(
     "/dashboard",
@@ -288,6 +307,7 @@ async def dashboard(
 
     if format == ExportFormat.EXCEL:
         from app.utils.exporters import export_dashboard_excel
+
         content = export_dashboard_excel(report_dict)
         return Response(
             content=content,
@@ -299,6 +319,7 @@ async def dashboard(
 
 
 # ─── 9. Rapport BCEAO ────────────────────────────────────────────────────────
+
 
 @router.get(
     "/bceao-prudential",
@@ -321,9 +342,7 @@ async def bceao_prudential(
     format: ExportFormat = Query(ExportFormat.JSON),
     svc: ReportingService = Depends(get_service),
 ):
-    cache_key = make_cache_key("bceao", {
-        "date": str(as_of_date), "agr": numero_agrement
-    })
+    cache_key = make_cache_key("bceao", {"date": str(as_of_date), "agr": numero_agrement})
     cached = await get_cached(cache_key)
     if cached and format == ExportFormat.JSON:
         return cached
@@ -334,10 +353,12 @@ async def bceao_prudential(
 
     if format == ExportFormat.PDF:
         from app.utils.exporters import export_bceao_pdf
+
         content = export_bceao_pdf(report_dict)
         filename = f"bceao_prudential_{as_of_date}.pdf"
         return Response(
-            content=content, media_type="application/pdf",
+            content=content,
+            media_type="application/pdf",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
@@ -345,6 +366,7 @@ async def bceao_prudential(
 
 
 # ─── 10. Journal centralisateur ───────────────────────────────────────────────
+
 
 @router.get(
     "/journal-centralizer",
@@ -366,6 +388,7 @@ async def journal_centralizer(
 
     if format == ExportFormat.EXCEL:
         from app.utils.exporters import export_journal_centralizer_excel
+
         content = export_journal_centralizer_excel(report.model_dump())
         filename = f"journal_centralizer_{start_date}_{end_date}.xlsx"
         return Response(
@@ -378,6 +401,7 @@ async def journal_centralizer(
 
 
 # ─── Exercices fiscaux (référence) ───────────────────────────────────────────
+
 
 @router.get(
     "/fiscal-years",

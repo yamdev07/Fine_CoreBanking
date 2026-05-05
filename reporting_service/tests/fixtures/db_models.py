@@ -2,21 +2,29 @@
 Modèles SQLAlchemy pour les tests d'intégration.
 Miroir des modèles du service comptabilité (lecture seule en prod).
 """
+
 import enum
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    BigInteger, Boolean, CheckConstraint, Date, DateTime,
-    Enum, ForeignKey, Index, Integer, Numeric, String, Text,
-    UniqueConstraint, func,
+    BigInteger,
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
 )
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 # SQLite-compatible UUID (stocké comme string)
 from sqlalchemy import String as SAString
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
@@ -27,36 +35,57 @@ def new_uuid() -> str:
     return str(uuid.uuid4())
 
 
-class AccountClass(str, enum.Enum):
-    CAPITAL = "1"; IMMOBILISE = "2"; STOCK = "3"; TIERS = "4"
-    TRESORERIE = "5"; CHARGES = "6"; PRODUITS = "7"
-    SPECIAUX = "8"; ANALYTIQUE = "9"
+class AccountClass(enum.StrEnum):
+    CAPITAL = "1"
+    IMMOBILISE = "2"
+    STOCK = "3"
+    TIERS = "4"
+    TRESORERIE = "5"
+    CHARGES = "6"
+    PRODUITS = "7"
+    SPECIAUX = "8"
+    ANALYTIQUE = "9"
 
 
-class AccountType(str, enum.Enum):
-    ACTIF = "ACTIF"; PASSIF = "PASSIF"
-    CHARGE = "CHARGE"; PRODUIT = "PRODUIT"
+class AccountType(enum.StrEnum):
+    ACTIF = "ACTIF"
+    PASSIF = "PASSIF"
+    CHARGE = "CHARGE"
+    PRODUIT = "PRODUIT"
 
 
-class AccountNature(str, enum.Enum):
-    DEBITEUR = "DEBITEUR"; CREDITEUR = "CREDITEUR"
+class AccountNature(enum.StrEnum):
+    DEBITEUR = "DEBITEUR"
+    CREDITEUR = "CREDITEUR"
 
 
-class JournalCode(str, enum.Enum):
-    GJ = "GJ"; CJ = "CJ"; BJ = "BJ"; OD = "OD"
-    AN = "AN"; EX = "EX"; CR = "CR"; EP = "EP"
+class JournalCode(enum.StrEnum):
+    GJ = "GJ"
+    CJ = "CJ"
+    BJ = "BJ"
+    OD = "OD"
+    AN = "AN"
+    EX = "EX"
+    CR = "CR"
+    EP = "EP"
 
 
-class EntryStatus(str, enum.Enum):
-    DRAFT = "DRAFT"; POSTED = "POSTED"; REVERSED = "REVERSED"
+class EntryStatus(enum.StrEnum):
+    DRAFT = "DRAFT"
+    POSTED = "POSTED"
+    REVERSED = "REVERSED"
 
 
-class PeriodStatus(str, enum.Enum):
-    OPEN = "OPEN"; CLOSED = "CLOSED"; LOCKED = "LOCKED"
+class PeriodStatus(enum.StrEnum):
+    OPEN = "OPEN"
+    CLOSED = "CLOSED"
+    LOCKED = "LOCKED"
 
 
-class FiscalYearStatus(str, enum.Enum):
-    OPEN = "OPEN"; CLOSING = "CLOSING"; CLOSED = "CLOSED"
+class FiscalYearStatus(enum.StrEnum):
+    OPEN = "OPEN"
+    CLOSING = "CLOSING"
+    CLOSED = "CLOSED"
 
 
 class FiscalYear(Base):
@@ -68,9 +97,7 @@ class FiscalYear(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="OPEN")
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     closed_by: Mapped[str | None] = mapped_column(String(100))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     __table_args__ = (UniqueConstraint("name"),)
 
 
@@ -107,12 +134,8 @@ class AccountPlan(Base):
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="XOF")
     description: Mapped[str | None] = mapped_column(Text)
     budget_amount: Mapped[Decimal | None] = mapped_column(Numeric(20, 4))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     version: Mapped[int] = mapped_column(Integer, default=1)
     __table_args__ = (UniqueConstraint("code", name="uq_account_code"),)
 
@@ -127,9 +150,7 @@ class Journal(Base):
     last_sequence: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
     sequence_prefix: Mapped[str] = mapped_column(String(10), nullable=False, default="")
     description: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     __table_args__ = (UniqueConstraint("code"),)
 
 
@@ -137,9 +158,7 @@ class JournalEntry(Base):
     __tablename__ = "journal_entries"
     id: Mapped[str] = mapped_column(SAString(36), primary_key=True, default=new_uuid)
     entry_number: Mapped[str] = mapped_column(String(30), nullable=False)
-    journal_id: Mapped[str] = mapped_column(
-        SAString(36), ForeignKey("journals.id"), nullable=False
-    )
+    journal_id: Mapped[str] = mapped_column(SAString(36), ForeignKey("journals.id"), nullable=False)
     period_id: Mapped[str] = mapped_column(
         SAString(36), ForeignKey("accounting_periods.id"), nullable=False
     )
@@ -160,12 +179,8 @@ class JournalEntry(Base):
     )
     source_service: Mapped[str | None] = mapped_column(String(50))
     source_event_id: Mapped[str | None] = mapped_column(String(100))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     __table_args__ = (UniqueConstraint("entry_number", name="uq_entry_number"),)
 
 
@@ -188,6 +203,4 @@ class JournalLine(Base):
     lettering_code: Mapped[str | None] = mapped_column(String(20))
     lettered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     lettered_by: Mapped[str | None] = mapped_column(String(100))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

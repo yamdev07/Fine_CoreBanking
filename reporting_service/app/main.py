@@ -1,9 +1,9 @@
 """
 Point d'entrée — Microservice Reporting.
 """
-from contextlib import asynccontextmanager
 
 import asyncio
+from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, Request
@@ -15,11 +15,13 @@ from app.core.config import settings
 from app.core.exceptions import ReportingBaseError
 from app.db.session import engine
 
-structlog.configure(processors=[
-    structlog.processors.TimeStamper(fmt="iso"),
-    structlog.stdlib.add_log_level,
-    structlog.processors.JSONRenderer(),
-])
+structlog.configure(
+    processors=[
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.stdlib.add_log_level,
+        structlog.processors.JSONRenderer(),
+    ]
+)
 logger = structlog.get_logger(__name__)
 
 
@@ -28,6 +30,7 @@ async def lifespan(app: FastAPI):
     logger.info("reporting_service.starting", version=settings.APP_VERSION)
 
     from app.services.kafka_consumer import run_cache_invalidation_consumer
+
     kafka_task = asyncio.create_task(run_cache_invalidation_consumer())
 
     yield

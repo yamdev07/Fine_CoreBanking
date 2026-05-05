@@ -2,6 +2,7 @@
 Cache Redis — mémorise les rapports lourds pour éviter de recalculer.
 Clé : "report:{type}:{params_hash}"
 """
+
 import hashlib
 import json
 from typing import Any

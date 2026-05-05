@@ -2,10 +2,13 @@
 Session base de données — LECTURE SEULE sur la base comptabilité.
 Le user PostgreSQL `reporting_ro` n'a que des droits SELECT.
 """
+
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
-    AsyncSession, async_sessionmaker, create_async_engine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
 )
 
 from app.core.config import settings

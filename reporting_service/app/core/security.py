@@ -2,6 +2,7 @@
 Sécurité JWT — Microservice Reporting (lecture seule).
 Valide les tokens émis par le microservice Comptabilité.
 """
+
 from typing import Annotated
 
 import structlog
