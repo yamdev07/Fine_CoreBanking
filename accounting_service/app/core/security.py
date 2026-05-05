@@ -11,6 +11,7 @@ Flux :
   4. Contrôle des rôles (RBAC)
   5. Propagation du principal dans la requête
 """
+
 import enum
 from typing import Annotated
 
@@ -33,26 +34,30 @@ if settings.ENVIRONMENT == "production" and settings.JWT_SECRET_KEY == "change-m
 
 # ─── Rôles ────────────────────────────────────────────────────────────────────
 
+
 class Role(enum.StrEnum):
-    ADMIN           = "ADMIN"           # Accès total
-    ACCOUNTANT      = "ACCOUNTANT"      # Saisie et validation des écritures
-    AUDITOR         = "AUDITOR"         # Lecture seule
-    SERVICE_CREDIT  = "SERVICE_CREDIT"  # Microservice Crédit (M2M)
-    SERVICE_SAVINGS = "SERVICE_SAVINGS" # Microservice Épargne (M2M)
-    SERVICE_CASH    = "SERVICE_CASH"    # Microservice Caisse (M2M)
+    ADMIN = "ADMIN"  # Accès total
+    ACCOUNTANT = "ACCOUNTANT"  # Saisie et validation des écritures
+    AUDITOR = "AUDITOR"  # Lecture seule
+    SERVICE_CREDIT = "SERVICE_CREDIT"  # Microservice Crédit (M2M)
+    SERVICE_SAVINGS = "SERVICE_SAVINGS"  # Microservice Épargne (M2M)
+    SERVICE_CASH = "SERVICE_CASH"  # Microservice Caisse (M2M)
 
 
 # ─── Modèle du token ──────────────────────────────────────────────────────────
 
+
 class TokenPayload(BaseModel):
     """Contenu attendu dans le JWT."""
-    sub: str                    # Identifiant du sujet (user id ou nom du service)
-    roles: list[Role] = []     # Rôles attribués
+
+    sub: str  # Identifiant du sujet (user id ou nom du service)
+    roles: list[Role] = []  # Rôles attribués
     service: str | None = None  # Renseigné pour les tokens M2M inter-services
-    exp: int                    # Obligatoire — un token sans expiration est rejeté
+    exp: int  # Obligatoire — un token sans expiration est rejeté
 
 
 # ─── Décodage et validation du token ─────────────────────────────────────────
+
 
 def _decode_token(token: str) -> TokenPayload:
     try:
@@ -80,6 +85,7 @@ def _decode_token(token: str) -> TokenPayload:
 
 # ─── Dépendance principale ────────────────────────────────────────────────────
 
+
 async def get_current_principal(
     credentials: HTTPAuthorizationCredentials | None = Depends(http_bearer),
 ) -> TokenPayload:
@@ -103,6 +109,7 @@ async def get_current_principal(
 
 
 # ─── Contrôle d'accès par rôle (RBAC) ────────────────────────────────────────
+
 
 def require_roles(*allowed_roles: Role):
     """
@@ -150,13 +157,15 @@ WriteAccess = Annotated[
 # Services internes + comptables (création d'écritures automatiques)
 ServiceOrWrite = Annotated[
     TokenPayload,
-    Depends(require_roles(
-        Role.ADMIN,
-        Role.ACCOUNTANT,
-        Role.SERVICE_CREDIT,
-        Role.SERVICE_SAVINGS,
-        Role.SERVICE_CASH,
-    )),
+    Depends(
+        require_roles(
+            Role.ADMIN,
+            Role.ACCOUNTANT,
+            Role.SERVICE_CREDIT,
+            Role.SERVICE_SAVINGS,
+            Role.SERVICE_CASH,
+        )
+    ),
 ]
 
 # Administrateur uniquement (opérations destructives)

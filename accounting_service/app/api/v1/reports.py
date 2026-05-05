@@ -3,6 +3,7 @@ Router — Rapports comptables
   - Balance générale
   - Grand livre
 """
+
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query

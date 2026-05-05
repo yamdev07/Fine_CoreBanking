@@ -1,6 +1,7 @@
 """
 Router — Plan de comptes
 """
+
 import csv
 import io
 import math
@@ -35,6 +36,7 @@ router = APIRouter(prefix="/accounts", tags=["Plan de comptes"])
 
 # ─── Schémas locaux ───────────────────────────────────────────────────────────
 
+
 class PlanTemplateInfo(BaseModel):
     id: str
     name: str
@@ -58,6 +60,7 @@ class CsvImportResult(BaseModel):
 
 
 # ─── Helper : chargement idempotent d'un template ────────────────────────────
+
 
 async def _load_template_accounts(
     session: AsyncSession,
@@ -178,7 +181,10 @@ async def list_accounts(
         limit=size,
     )
     return PaginatedResponse(
-        items=items, total=total, page=page, size=size,
+        items=items,
+        total=total,
+        page=page,
+        size=size,
         pages=math.ceil(total / size) if total > 0 else 0,
     )
 
@@ -239,6 +245,7 @@ async def get_account_balance(
 
 
 # ─── Templates de plan comptable ──────────────────────────────────────────────
+
 
 @router.get("/templates/list", response_model=list[PlanTemplateInfo])
 async def list_plan_templates(principal: AnyAuthenticated):
@@ -323,7 +330,7 @@ async def import_accounts_csv(
         raise HTTPException(
             status_code=422,
             detail=f"Colonnes manquantes : {', '.join(sorted(missing))}. "
-                   f"Colonnes requises : {', '.join(sorted(required_cols))}",
+            f"Colonnes requises : {', '.join(sorted(required_cols))}",
         )
 
     # Pre-index existing accounts
@@ -350,23 +357,23 @@ async def import_accounts_csv(
 
         # Validate enums
         try:
-            acc_class   = AccountClass(row["account_class"].strip())
-            acc_type    = AccountType(row["account_type"].strip())
-            acc_nature  = AccountNature(row["account_nature"].strip())
+            acc_class = AccountClass(row["account_class"].strip())
+            acc_type = AccountType(row["account_type"].strip())
+            acc_nature = AccountNature(row["account_nature"].strip())
         except ValueError as e:
             errors.append(f"Ligne {i} ({code}): valeur invalide — {e}")
             continue
 
         parent_code = row.get("parent_code", "").strip() or None
-        parent_id   = code_to_id.get(parent_code) if parent_code else None
+        parent_id = code_to_id.get(parent_code) if parent_code else None
         level = 1
-        path  = ""
+        path = ""
 
         if parent_id:
             parent = await session.get(AccountPlan, parent_id)
             if parent:
                 level = parent.level + 1
-                path  = f"{parent.path}{parent_id}/"
+                path = f"{parent.path}{parent_id}/"
                 if parent.is_leaf:
                     parent.is_leaf = False
         elif parent_code and not parent_id:

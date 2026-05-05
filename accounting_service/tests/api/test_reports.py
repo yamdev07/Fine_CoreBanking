@@ -2,6 +2,7 @@
 API tests — Rapports comptables
 Couvre : balance générale, grand livre, dates invalides, permissions.
 """
+
 from decimal import Decimal
 
 from httpx import AsyncClient
@@ -22,7 +23,6 @@ def balanced_entry(amount: str = "1000000") -> dict:
 
 
 class TestTrialBalance:
-
     async def test_trial_balance_empty_period(self, api_client: AsyncClient, auditor_headers: dict):
         res = await api_client.get(
             "/api/v1/reports/trial-balance",
@@ -44,9 +44,13 @@ class TestTrialBalance:
         self, api_client: AsyncClient, accountant_headers: dict, auditor_headers: dict
     ):
         # Create and post an entry
-        create_res = await api_client.post("/api/v1/journal-entries/", json=balanced_entry(), headers=accountant_headers)
+        create_res = await api_client.post(
+            "/api/v1/journal-entries/", json=balanced_entry(), headers=accountant_headers
+        )
         entry_id = create_res.json()["id"]
-        await api_client.post(f"/api/v1/journal-entries/{entry_id}/post", headers=accountant_headers)
+        await api_client.post(
+            f"/api/v1/journal-entries/{entry_id}/post", headers=accountant_headers
+        )
 
         res = await api_client.get(
             "/api/v1/reports/trial-balance",
@@ -61,7 +65,9 @@ class TestTrialBalance:
         # Total debit == total credit (double entry invariant)
         assert body["total_debit"] == body["total_credit"]
 
-    async def test_trial_balance_invalid_date_range_returns_422(self, api_client: AsyncClient, auditor_headers: dict):
+    async def test_trial_balance_invalid_date_range_returns_422(
+        self, api_client: AsyncClient, auditor_headers: dict
+    ):
         res = await api_client.get(
             "/api/v1/reports/trial-balance",
             params={"start_date": "2024-12-31", "end_date": "2024-01-01"},
@@ -69,7 +75,9 @@ class TestTrialBalance:
         )
         assert res.status_code == 422
 
-    async def test_trial_balance_missing_dates_returns_422(self, api_client: AsyncClient, auditor_headers: dict):
+    async def test_trial_balance_missing_dates_returns_422(
+        self, api_client: AsyncClient, auditor_headers: dict
+    ):
         res = await api_client.get("/api/v1/reports/trial-balance", headers=auditor_headers)
         assert res.status_code == 422
 
@@ -84,7 +92,9 @@ class TestTrialBalance:
         self, api_client: AsyncClient, accountant_headers: dict, auditor_headers: dict
     ):
         # Create but do NOT post
-        await api_client.post("/api/v1/journal-entries/", json=balanced_entry(), headers=accountant_headers)
+        await api_client.post(
+            "/api/v1/journal-entries/", json=balanced_entry(), headers=accountant_headers
+        )
 
         res = await api_client.get(
             "/api/v1/reports/trial-balance",
@@ -97,7 +107,6 @@ class TestTrialBalance:
 
 
 class TestGeneralLedger:
-
     async def test_general_ledger_empty(self, api_client: AsyncClient, auditor_headers: dict):
         res = await api_client.get(
             f"/api/v1/reports/general-ledger/{CASH_ACCOUNT_ID}",
@@ -114,9 +123,13 @@ class TestGeneralLedger:
     async def test_general_ledger_with_posted_entries(
         self, api_client: AsyncClient, accountant_headers: dict, auditor_headers: dict
     ):
-        create_res = await api_client.post("/api/v1/journal-entries/", json=balanced_entry(), headers=accountant_headers)
+        create_res = await api_client.post(
+            "/api/v1/journal-entries/", json=balanced_entry(), headers=accountant_headers
+        )
         entry_id = create_res.json()["id"]
-        await api_client.post(f"/api/v1/journal-entries/{entry_id}/post", headers=accountant_headers)
+        await api_client.post(
+            f"/api/v1/journal-entries/{entry_id}/post", headers=accountant_headers
+        )
 
         res = await api_client.get(
             f"/api/v1/reports/general-ledger/{CASH_ACCOUNT_ID}",
@@ -129,7 +142,9 @@ class TestGeneralLedger:
         assert Decimal(body["lines"][0]["debit_amount"]) == Decimal("1000000")
         assert body["closing_balance"] is not None
 
-    async def test_general_ledger_nonexistent_account_returns_404(self, api_client: AsyncClient, auditor_headers: dict):
+    async def test_general_ledger_nonexistent_account_returns_404(
+        self, api_client: AsyncClient, auditor_headers: dict
+    ):
         res = await api_client.get(
             "/api/v1/reports/general-ledger/00000000-0000-0000-0000-deadbeef0001",
             params={"start_date": "2024-01-01", "end_date": "2024-01-31"},
@@ -143,9 +158,14 @@ class TestGeneralLedger:
         """Solde progressif augmente correctement après chaque écriture."""
         for _ in range(3):
             create_res = await api_client.post(
-                "/api/v1/journal-entries/", json=balanced_entry("100000"), headers=accountant_headers
+                "/api/v1/journal-entries/",
+                json=balanced_entry("100000"),
+                headers=accountant_headers,
             )
-            await api_client.post(f"/api/v1/journal-entries/{create_res.json()['id']}/post", headers=accountant_headers)
+            await api_client.post(
+                f"/api/v1/journal-entries/{create_res.json()['id']}/post",
+                headers=accountant_headers,
+            )
 
         res = await api_client.get(
             f"/api/v1/reports/general-ledger/{CASH_ACCOUNT_ID}",

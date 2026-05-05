@@ -1,6 +1,7 @@
 """
 Service d'authentification — hachage de mots de passe, émission de tokens JWT.
 """
+
 from datetime import UTC, datetime, timedelta
 
 import structlog
@@ -19,9 +20,9 @@ _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Mapping UserRole → JWT Role
 _ROLE_MAP: dict[UserRole, Role] = {
-    UserRole.ADMIN:      Role.ADMIN,
+    UserRole.ADMIN: Role.ADMIN,
     UserRole.ACCOUNTANT: Role.ACCOUNTANT,
-    UserRole.AUDITOR:    Role.AUDITOR,
+    UserRole.AUDITOR: Role.AUDITOR,
 }
 
 
@@ -46,9 +47,7 @@ def create_access_token(user: User) -> tuple[str, int]:
     return token, expires_in
 
 
-async def authenticate_user(
-    session: AsyncSession, username: str, password: str
-) -> User | None:
+async def authenticate_user(session: AsyncSession, username: str, password: str) -> User | None:
     result = await session.execute(select(User).where(User.username == username))
     user = result.scalar_one_or_none()
     if user is None or not user.is_active:

@@ -1,6 +1,7 @@
 """
 Modèle SQLAlchemy — Utilisateurs et authentification.
 """
+
 import enum
 import uuid
 from datetime import datetime
@@ -16,17 +17,15 @@ def _new_uuid() -> str:
 
 
 class UserRole(enum.StrEnum):
-    ADMIN      = "ADMIN"
+    ADMIN = "ADMIN"
     ACCOUNTANT = "ACCOUNTANT"
-    AUDITOR    = "AUDITOR"
+    AUDITOR = "AUDITOR"
 
 
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[str] = mapped_column(
-        Uuid(as_uuid=False), primary_key=True, default=_new_uuid
-    )
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=_new_uuid)
     username: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(128), nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
@@ -44,6 +43,4 @@ class User(Base):
         onupdate=func.now(),
         nullable=False,
     )
-    last_login_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

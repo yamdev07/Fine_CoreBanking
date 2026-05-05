@@ -1,6 +1,7 @@
 """
 Modèle AuditLog — trace immuable de toutes les mutations de l'API.
 """
+
 import uuid
 from datetime import datetime
 
@@ -18,9 +19,7 @@ def _new_uuid() -> str:
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 
-    id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=_new_uuid
-    )
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_new_uuid)
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )

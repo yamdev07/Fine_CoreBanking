@@ -1,6 +1,7 @@
 """
 Schémas Pydantic — Authentification et gestion des utilisateurs.
 """
+
 from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, field_validator
@@ -8,6 +9,7 @@ from pydantic import BaseModel, EmailStr, field_validator
 from app.models.auth import UserRole
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
+
 
 class LoginRequest(BaseModel):
     username: str
@@ -17,11 +19,12 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    expires_in: int       # secondes
+    expires_in: int  # secondes
     user: "UserOut"
 
 
 # ─── User ─────────────────────────────────────────────────────────────────────
+
 
 class UserOut(BaseModel):
     id: str
