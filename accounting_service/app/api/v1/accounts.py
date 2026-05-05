@@ -8,7 +8,7 @@ import math
 import uuid
 from datetime import date
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +21,7 @@ from app.core.exceptions import (
 from app.core.security import AdminOnly, AnyAuthenticated, WriteAccess
 from app.data.plan_templates import TEMPLATES, AccountDef
 from app.db.session import get_session
-from app.models.accounting import AccountPlan, Journal, JournalCode
+from app.models.accounting import AccountClass, AccountNature, AccountPlan, AccountType, Journal, JournalCode
 from app.schemas.accounting import (
     AccountBalanceResponse,
     AccountCreate,
@@ -290,56 +290,193 @@ async def load_plan_template(
     )
 
 
-@router.post("/import/csv", response_model=CsvImportResult)
-async def import_accounts_csv(
+REQUIRED_COLS = {"code", "name", "account_class", "account_type", "account_nature"}
+
+CSV_TEMPLATE = (
+    "code,name,account_class,account_type,account_nature,parent_code,allow_manual_entry,description\n"
+    "1,CAPITAUX PROPRES,CAPITAL,PASSIF,CREDITEUR,,false,Classe 1 - Comptes de capitaux\n"
+    "10,Capital et dotations,CAPITAL,PASSIF,CREDITEUR,1,false,\n"
+    "101000,Capital social,CAPITAL,PASSIF,CREDITEUR,10,true,Capital libéré\n"
+    "5,TRÉSORERIE,TRESORERIE,ACTIF,DEBITEUR,,false,Classe 5 - Trésorerie\n"
+    "57,Caisse,TRESORERIE,ACTIF,DEBITEUR,5,false,\n"
+    "571000,Caisse principale,TRESORERIE,ACTIF,DEBITEUR,57,true,\n"
+    "6,CHARGES,CHARGES,CHARGE,DEBITEUR,,false,Classe 6 - Charges\n"
+    "7,PRODUITS,PRODUITS,PRODUIT,CREDITEUR,,false,Classe 7 - Produits\n"
+)
+
+ACCOUNT_CLASS_VALUES: dict[str, str] = {
+    "1": "CAPITAL", "2": "IMMOBILISE", "3": "STOCK",
+    "4": "TIERS", "5": "TRESORERIE", "6": "CHARGES", "7": "PRODUITS",
+    "8": "SPECIAUX", "9": "ANALYTIQUE",
+    "CAPITAL": "CAPITAL", "IMMOBILISE": "IMMOBILISE", "STOCK": "STOCK",
+    "TIERS": "TIERS", "TRESORERIE": "TRESORERIE", "CHARGES": "CHARGES",
+    "PRODUITS": "PRODUITS", "SPECIAUX": "SPECIAUX", "ANALYTIQUE": "ANALYTIQUE",
+}
+
+
+def _parse_csv_rows(content: bytes) -> list[dict]:
+    """Decode CSV bytes and return list of row dicts."""
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = content.decode("latin-1")
+    sample = text[:1024]
+    delimiter = ";" if sample.count(";") >= sample.count(",") else ","
+    reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
+    fieldnames = set(reader.fieldnames or [])
+    missing = REQUIRED_COLS - fieldnames
+    if missing:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Colonnes manquantes : {', '.join(sorted(missing))}. "
+                f"Colonnes requises : {', '.join(sorted(REQUIRED_COLS))}"
+            ),
+        )
+    return list(reader)
+
+
+def _parse_pdf_rows(content: bytes) -> list[dict]:
+    """Extract account rows from a PDF plan comptable using pdfplumber."""
+    try:
+        import pdfplumber
+    except ImportError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Dépendance pdfplumber manquante. Contactez l'administrateur.",
+        ) from exc
+
+    rows: list[dict] = []
+    header_found = False
+    col_map: dict[str, int] = {}
+
+    with pdfplumber.open(io.BytesIO(content)) as pdf:
+        for page in pdf.pages:
+            tables = page.extract_tables()
+            for table in tables:
+                if not table:
+                    continue
+                for row in table:
+                    if row is None:
+                        continue
+                    cells = [str(c).strip() if c else "" for c in row]
+
+                    # Try to detect header row
+                    if not header_found:
+                        lower = [c.lower() for c in cells]
+                        if "code" in lower and "name" in lower:
+                            col_map = {c.lower(): i for i, c in enumerate(lower)}
+                            header_found = True
+                            continue
+
+                    if not header_found:
+                        continue
+
+                    def get(key: str) -> str:
+                        idx = col_map.get(key, -1)
+                        return cells[idx].strip() if 0 <= idx < len(cells) else ""
+
+                    code = get("code")
+                    name = get("name") or get("intitulé") or get("libellé")
+                    if not code or not name:
+                        continue
+
+                    rows.append({
+                        "code": code,
+                        "name": name,
+                        "account_class": get("account_class") or get("classe"),
+                        "account_type": get("account_type") or get("type"),
+                        "account_nature": get("account_nature") or get("nature"),
+                        "parent_code": get("parent_code") or get("parent"),
+                        "allow_manual_entry": get("allow_manual_entry") or "true",
+                        "description": get("description") or get("description"),
+                    })
+
+    if not rows:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Aucun tableau avec les colonnes requises trouvé dans le PDF. "
+                "Assurez-vous que le PDF contient un tableau avec au minimum les colonnes : "
+                "code, name, account_class, account_type, account_nature."
+            ),
+        )
+
+    missing_vals = REQUIRED_COLS - {"parent_code", "allow_manual_entry", "description"}
+    sample_row = rows[0]
+    empty_required = [k for k in missing_vals if not sample_row.get(k)]
+    if empty_required:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Colonnes requises vides dans le PDF : {', '.join(empty_required)}. "
+                   f"Colonnes attendues : {', '.join(sorted(REQUIRED_COLS))}",
+        )
+    return rows
+
+
+@router.get("/import/template", response_class=Response)
+async def download_import_template(_principal: AnyAuthenticated):
+    """
+    Télécharge un fichier CSV modèle pour l'import personnalisé.
+
+    Valeurs valides pour account_class : CAPITAL, IMMOBILISE, STOCK, TIERS,
+    TRESORERIE, CHARGES, PRODUITS, SPECIAUX, ANALYTIQUE (ou chiffres 1-9).
+    Valeurs valides pour account_type  : ACTIF, PASSIF, CHARGE, PRODUIT.
+    Valeurs valides pour account_nature : DEBITEUR, CREDITEUR.
+    """
+    return Response(
+        content=CSV_TEMPLATE,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=plan_comptable_template.csv"},
+    )
+
+
+@router.post("/import", response_model=CsvImportResult)
+async def import_accounts(
     principal: WriteAccess,
-    file: UploadFile = File(..., description="Fichier CSV du plan de comptes"),
+    file: UploadFile = File(..., description="Fichier CSV ou PDF du plan de comptes"),
     session: AsyncSession = Depends(get_session),
 ):
     """
-    Importe des comptes depuis un fichier CSV (idempotent).
+    Importe des comptes depuis un fichier CSV ou PDF (idempotent).
 
-    Format attendu (séparateur: virgule ou point-virgule) :
-    ```
-    code,name,account_class,account_type,account_nature,parent_code,allow_manual_entry,description
-    101000,Capital social,1,PASSIF,CREDITEUR,10,true,
-    ```
-    Colonnes obligatoires : code, name, account_class, account_type, account_nature
-    Colonnes optionnelles : parent_code, allow_manual_entry (true/false), description
+    **Formats acceptés :** `.csv`, `.pdf`
+
+    **Colonnes obligatoires (CSV) ou colonnes de tableau (PDF) :**
+    `code`, `name`, `account_class`, `account_type`, `account_nature`
+
+    **Colonnes optionnelles :** `parent_code`, `allow_manual_entry` (true/false), `description`
+
+    **Valeurs valides pour account_class :**
+    `CAPITAL` (1), `IMMOBILISE` (2), `STOCK` (3), `TIERS` (4), `TRESORERIE` (5),
+    `CHARGES` (6), `PRODUITS` (7), `SPECIAUX` (8), `ANALYTIQUE` (9).
+    Les chiffres 1-9 sont aussi acceptés.
+
+    **Valeurs valides pour account_type :** `ACTIF`, `PASSIF`, `CHARGE`, `PRODUIT`
+
+    **Valeurs valides pour account_nature :** `DEBITEUR`, `CREDITEUR`
 
     Rôles : ADMIN, ACCOUNTANT.
     """
-    if not file.filename or not file.filename.lower().endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Le fichier doit être au format CSV (.csv).")
+    filename = (file.filename or "").lower()
+    if not (filename.endswith(".csv") or filename.endswith(".pdf")):
+        raise HTTPException(
+            status_code=400,
+            detail="Format non supporté. Utilisez un fichier .csv ou .pdf.",
+        )
 
     content = await file.read()
-    try:
-        text = content.decode("utf-8-sig")  # BOM-safe
-    except UnicodeDecodeError:
-        text = content.decode("latin-1")
 
-    # Auto-detect delimiter
-    sample = text[:1024]
-    delimiter = ";" if sample.count(";") >= sample.count(",") else ","
-
-    reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
-
-    required_cols = {"code", "name", "account_class", "account_type", "account_nature"}
-    if not required_cols.issubset(set(reader.fieldnames or [])):
-        missing = required_cols - set(reader.fieldnames or [])
-        raise HTTPException(
-            status_code=422,
-            detail=f"Colonnes manquantes : {', '.join(sorted(missing))}. "
-            f"Colonnes requises : {', '.join(sorted(required_cols))}",
-        )
+    rows: list[dict]
+    if filename.endswith(".pdf"):
+        rows = _parse_pdf_rows(content)
+    else:
+        rows = _parse_csv_rows(content)
 
     # Pre-index existing accounts
     existing = (await session.execute(select(AccountPlan))).scalars().all()
     code_to_id: dict[str, str] = {acc.code: acc.id for acc in existing}
 
-    from app.models.accounting import AccountClass, AccountNature, AccountType
-
-    rows = list(reader)
     created = 0
     skipped = 0
     errors: list[str] = []
@@ -355,9 +492,10 @@ async def import_accounts_csv(
             skipped += 1
             continue
 
-        # Validate enums
+        # Validate enums — normalize numeric class values ("1" → "CAPITAL")
+        raw_class = ACCOUNT_CLASS_VALUES.get(row["account_class"].strip().upper(), row["account_class"].strip())
         try:
-            acc_class = AccountClass(row["account_class"].strip())
+            acc_class = AccountClass(raw_class)
             acc_type = AccountType(row["account_type"].strip())
             acc_nature = AccountNature(row["account_nature"].strip())
         except ValueError as e:
