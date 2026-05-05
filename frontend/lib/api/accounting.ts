@@ -43,20 +43,123 @@ export interface Account {
   id: string;
   code: string;
   name: string;
+  short_name: string | null;
   account_class: string;
   account_type: "ACTIF" | "PASSIF" | "CHARGE" | "PRODUIT";
   account_nature: "DEBITEUR" | "CREDITEUR";
+  parent_id: string | null;
+  level: number;
   is_leaf: boolean;
   is_active: boolean;
-  balance: number;
+  allow_manual_entry: boolean;
   currency: string;
+  description: string | null;
+  budget_amount: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-export const getAccounts = (params?: { class?: string; is_leaf?: boolean }) => {
+export interface AccountCreate {
+  code: string;
+  name: string;
+  short_name?: string;
+  account_class: string;
+  account_type: "ACTIF" | "PASSIF" | "CHARGE" | "PRODUIT";
+  account_nature: "DEBITEUR" | "CREDITEUR";
+  parent_id?: string;
+  currency?: string;
+  allow_manual_entry?: boolean;
+  description?: string;
+}
+
+export interface AccountUpdate {
+  name?: string;
+  short_name?: string;
+  allow_manual_entry?: boolean;
+  description?: string;
+  is_active?: boolean;
+}
+
+export const getAccounts = (params?: {
+  class?: string;
+  is_leaf?: boolean;
+  is_active?: boolean;
+  search?: string;
+  page?: number;
+  size?: number;
+}) => {
   const qs = new URLSearchParams();
   if (params?.class) qs.set("account_class", params.class);
   if (params?.is_leaf !== undefined) qs.set("is_leaf", String(params.is_leaf));
-  return req<{ items: Account[]; total: number }>(`/api/v1/accounts/?${qs}`);
+  if (params?.is_active !== undefined) qs.set("is_active", String(params.is_active));
+  if (params?.search) qs.set("search", params.search);
+  qs.set("page", String(params?.page ?? 1));
+  qs.set("size", String(params?.size ?? 50));
+  return req<{ items: Account[]; total: number; pages: number }>(`/api/v1/accounts/?${qs}`);
+};
+
+// ── Templates de plan comptable ───────────────────────────────────────────────
+
+export interface PlanTemplate {
+  id: string;
+  name: string;
+  description: string;
+  target: "MICROFINANCE" | "BANK" | "CUSTOM";
+  account_count: number;
+  journal_count: number;
+}
+
+export interface LoadTemplateResult {
+  template_id: string;
+  accounts_created: number;
+  accounts_skipped: number;
+  journals_created: number;
+}
+
+export const getPlanTemplates = () =>
+  req<PlanTemplate[]>("/api/v1/accounts/templates/list");
+
+export const loadPlanTemplate = (templateId: string) =>
+  req<LoadTemplateResult>(`/api/v1/accounts/templates/${templateId}/load`, { method: "POST" });
+
+export interface CsvImportResult {
+  accounts_created: number;
+  accounts_skipped: number;
+  errors: string[];
+}
+
+export const importAccountsCsv = async (file: File): Promise<CsvImportResult> => {
+  const token = getToken();
+  const form  = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${BASE}/api/v1/accounts/import/csv`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err?.detail ?? err?.message ?? res.statusText);
+  }
+  return res.json();
+};
+
+export const createAccount = (data: AccountCreate) =>
+  req<Account>("/api/v1/accounts/", { method: "POST", body: JSON.stringify(data) });
+
+export const updateAccount = (id: string, data: AccountUpdate) =>
+  req<Account>(`/api/v1/accounts/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+
+export const deactivateAccount = async (id: string): Promise<void> => {
+  const token = getToken();
+  const res = await fetch(`${BASE}/api/v1/accounts/${id}`, {
+    method: "DELETE",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err?.detail ?? err?.message ?? res.statusText);
+  }
 };
 
 // ── Journaux ──────────────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ import {
   LayoutDashboard, BookOpen, CalendarDays, FileText,
   BarChart3, TrendingUp, Scale, Activity, Wallet,
   PiggyBank, ShieldCheck, BookMarked, ChevronDown,
-  LogOut, Users, Landmark,
+  LogOut, Users, Landmark, Settings2,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/context/auth";
@@ -58,7 +58,8 @@ function buildNav(role: UserRole | undefined): NavItem[] {
       label: "Administration", icon: Users,
       adminOnly: true,
       children: [
-        { label: "Utilisateurs", href: "/users", icon: Users },
+        { label: "Utilisateurs",         href: "/users",                icon: Users },
+        { label: "Plan comptable",        href: "/settings/plan-setup",  icon: Settings2 },
       ],
     },
   ];
