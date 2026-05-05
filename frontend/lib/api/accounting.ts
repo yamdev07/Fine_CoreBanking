@@ -128,11 +128,11 @@ export interface CsvImportResult {
   errors: string[];
 }
 
-export const importAccountsCsv = async (file: File): Promise<CsvImportResult> => {
+export const importAccounts = async (file: File): Promise<CsvImportResult> => {
   const token = getToken();
   const form  = new FormData();
   form.append("file", file);
-  const res = await fetch(`${BASE}/api/v1/accounts/import/csv`, {
+  const res = await fetch(`${BASE}/api/v1/accounts/import`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
@@ -142,6 +142,21 @@ export const importAccountsCsv = async (file: File): Promise<CsvImportResult> =>
     throw new Error(err?.detail ?? err?.message ?? res.statusText);
   }
   return res.json();
+};
+
+export const downloadImportTemplate = async (): Promise<void> => {
+  const token = getToken();
+  const res = await fetch(`${BASE}/api/v1/accounts/import/template`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error("Erreur lors du téléchargement du modèle");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "plan_comptable_template.csv";
+  a.click();
+  URL.revokeObjectURL(url);
 };
 
 export const createAccount = (data: AccountCreate) =>

@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Header from "@/components/layout/Header";
 import { PageLoader, ErrorBox } from "@/components/ui/Spinner";
-import { getPlanTemplates, loadPlanTemplate, getAccounts, type PlanTemplate, type LoadTemplateResult } from "@/lib/api/accounting";
-import { CheckCircle2, Building2, Users, Wrench, ChevronRight, AlertTriangle } from "lucide-react";
+import {
+  getPlanTemplates, loadPlanTemplate, getAccounts, importAccounts, downloadImportTemplate,
+  type PlanTemplate, type LoadTemplateResult, type CsvImportResult,
+} from "@/lib/api/accounting";
+import { CheckCircle2, Building2, Users, Wrench, ChevronRight, AlertTriangle, Upload, FileText } from "lucide-react";
 import Link from "next/link";
 
 const TARGET_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -43,12 +46,34 @@ export default function PlanSetupPage() {
   const [result, setResult]         = useState<LoadTemplateResult | null>(null);
   const [loadError, setLoadError]   = useState("");
 
+  // Custom file import state
+  const fileInputRef                         = useRef<HTMLInputElement>(null);
+  const [importFile, setImportFile]          = useState<File | null>(null);
+  const [importing, setImporting]            = useState(false);
+  const [importResult, setImportResult]      = useState<CsvImportResult | null>(null);
+  const [importError, setImportError]        = useState("");
+
   useEffect(() => {
     Promise.all([getPlanTemplates(), getAccounts({ size: 1 })])
       .then(([t, a]) => { setTemplates(t); setExistingCount(a.total); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleImport = async () => {
+    if (!importFile) return;
+    setImporting(true); setImportError("");
+    try {
+      const r = await importAccounts(importFile);
+      setImportResult(r);
+      setImportFile(null);
+      getAccounts({ size: 1 }).then(a => setExistingCount(a.total));
+    } catch (e: unknown) {
+      setImportError(e instanceof Error ? e.message : "Erreur lors de l'import");
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const handleLoad = async () => {
     if (!selected) return;
@@ -125,7 +150,7 @@ export default function PlanSetupPage() {
         {error && <ErrorBox message={error} />}
         {loading && <PageLoader />}
 
-        {!loading && !error && !result && (
+        {!loading && !error && !result && !importResult && (
           <>
             <p className="text-slate-600 text-sm">
               Sélectionnez le type de plan adapté à votre institution. Le chargement est <strong>cumulatif</strong> —
@@ -140,7 +165,7 @@ export default function PlanSetupPage() {
                 return (
                   <button
                     key={t.id}
-                    onClick={() => setSelected(isSelected ? null : t.id)}
+                    onClick={() => { setSelected(isSelected ? null : t.id); setConfirming(false); }}
                     className={`
                       w-full text-left rounded-xl border-2 p-5 transition-all duration-150
                       ${isSelected
@@ -181,8 +206,83 @@ export default function PlanSetupPage() {
               })}
             </div>
 
-            {/* Bouton charger */}
-            {selected && !confirming && (
+            {/* Panel import personnalisé */}
+            {selected && templates.find(t => t.id === selected)?.target === "CUSTOM" && (
+              <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Wrench className="w-4 h-4 text-slate-500" />
+                  <p className="font-semibold text-slate-800 text-sm">Import de plan personnalisé</p>
+                </div>
+
+                {/* Docs champs */}
+                <div className="rounded-lg border border-slate-100 bg-slate-50 p-4 text-xs space-y-2">
+                  <p className="font-semibold text-slate-700">Colonnes <span className="text-red-500">obligatoires</span> :</p>
+                  <ul className="list-disc list-inside text-slate-600 space-y-1">
+                    <li><code className="font-mono bg-white px-1 rounded">code</code> — code du compte (ex : 101000)</li>
+                    <li><code className="font-mono bg-white px-1 rounded">name</code> — libellé</li>
+                    <li><code className="font-mono bg-white px-1 rounded">account_class</code> — <span className="font-medium">CAPITAL, IMMOBILISE, STOCK, TIERS, TRESORERIE, CHARGES, PRODUITS, SPECIAUX, ANALYTIQUE</span> (ou chiffres 1–9)</li>
+                    <li><code className="font-mono bg-white px-1 rounded">account_type</code> — <span className="font-medium">ACTIF, PASSIF, CHARGE, PRODUIT</span></li>
+                    <li><code className="font-mono bg-white px-1 rounded">account_nature</code> — <span className="font-medium">DEBITEUR, CREDITEUR</span></li>
+                  </ul>
+                  <p className="font-semibold text-slate-700 pt-1">Colonnes optionnelles :</p>
+                  <ul className="list-disc list-inside text-slate-600 space-y-1">
+                    <li><code className="font-mono bg-white px-1 rounded">parent_code</code> — code du compte parent</li>
+                    <li><code className="font-mono bg-white px-1 rounded">allow_manual_entry</code> — true / false</li>
+                    <li><code className="font-mono bg-white px-1 rounded">description</code> — texte libre</li>
+                  </ul>
+                  <p className="text-slate-500 pt-1">Formats acceptés : <strong>.csv</strong> (séparateur , ou ;) et <strong>.pdf</strong> (tableau avec colonnes nommées).</p>
+                </div>
+
+                {/* Télécharger le modèle */}
+                <button
+                  onClick={() => downloadImportTemplate().catch(e => setImportError(e.message))}
+                  className="btn-secondary text-xs flex items-center gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  Télécharger le modèle CSV
+                </button>
+
+                {/* Zone de dépôt fichier */}
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) setImportFile(f); }}
+                  className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center cursor-pointer hover:border-brand-400 hover:bg-brand-50 transition-colors"
+                >
+                  <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                  {importFile ? (
+                    <p className="text-sm font-medium text-brand-700">{importFile.name}</p>
+                  ) : (
+                    <p className="text-sm text-slate-500">Glisser-déposer ou cliquer pour choisir un fichier <strong>.csv</strong> ou <strong>.pdf</strong></p>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv,.pdf"
+                    className="hidden"
+                    onChange={e => setImportFile(e.target.files?.[0] ?? null)}
+                  />
+                </div>
+
+                {importError && <p className="text-sm text-red-600">{importError}</p>}
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleImport}
+                    disabled={!importFile || importing}
+                    className="btn-primary text-sm disabled:opacity-50"
+                  >
+                    {importing ? "Import en cours..." : "Importer"}
+                  </button>
+                  <button onClick={() => { setSelected(null); setImportFile(null); setImportError(""); }} className="btn-secondary text-sm">
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Bouton charger (templates non-CUSTOM) */}
+            {selected && templates.find(t => t.id === selected)?.target !== "CUSTOM" && !confirming && (
               <div className="flex items-center gap-3 pt-2">
                 <button onClick={() => setConfirming(true)} className="btn-primary">
                   Charger ce plan
@@ -209,6 +309,42 @@ export default function PlanSetupPage() {
               </div>
             )}
           </>
+        )}
+
+        {/* Résultat import personnalisé */}
+        {importResult && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              <p className="font-semibold text-emerald-800">Import terminé</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-center">
+              <div className="bg-white rounded-lg p-3 border border-emerald-100">
+                <p className="text-2xl font-bold text-emerald-700">{importResult.accounts_created}</p>
+                <p className="text-xs text-slate-500 mt-1">Comptes créés</p>
+              </div>
+              <div className="bg-white rounded-lg p-3 border border-emerald-100">
+                <p className="text-2xl font-bold text-slate-400">{importResult.accounts_skipped}</p>
+                <p className="text-xs text-slate-500 mt-1">Déjà existants</p>
+              </div>
+            </div>
+            {importResult.errors.length > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <p className="text-xs font-semibold text-amber-800 mb-1">{importResult.errors.length} avertissement(s)</p>
+                <ul className="text-xs text-amber-700 space-y-0.5 list-disc list-inside">
+                  {importResult.errors.map((e, i) => <li key={i}>{e}</li>)}
+                </ul>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <Link href="/accounts" className="btn-primary text-sm">
+                Voir le plan de comptes <ChevronRight className="w-4 h-4" />
+              </Link>
+              <button onClick={() => { setImportResult(null); setSelected(null); }} className="btn-secondary text-sm">
+                Importer un autre fichier
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </>

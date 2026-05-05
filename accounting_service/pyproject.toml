@@ -24,6 +24,7 @@ passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 bcrypt = ">=3.0.0,<4.0.0"
 python-multipart = "^0.0.9"
 slowapi = "^0.1.9"
+pdfplumber = "^0.11.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
