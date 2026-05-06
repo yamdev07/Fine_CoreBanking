@@ -17,7 +17,7 @@ from app.api.v1 import health as health_router, reports
 from app.core.config import settings
 from app.core.exceptions import ReportingBaseError
 from app.core.metrics import setup_metrics
-from app.core.rate_limit import get_jwt_subject, get_user_limit
+from app.core.rate_limit import get_jwt_subject
 from app.db.session import engine
 
 structlog.configure(
@@ -30,7 +30,7 @@ structlog.configure(
 logger = structlog.get_logger(__name__)
 
 
-limiter = Limiter(key_func=get_jwt_subject, default_limits=[get_user_limit])
+limiter = Limiter(key_func=get_jwt_subject, default_limits=["200/minute"])
 
 
 @asynccontextmanager

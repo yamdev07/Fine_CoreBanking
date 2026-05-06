@@ -1,18 +1,24 @@
-"""OpenTelemetry bootstrap — call configure_tracing(app, engine) once at startup."""
-from opentelemetry import trace
-from opentelemetry.sdk.resources import Resource, SERVICE_NAME, SERVICE_VERSION
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-from opentelemetry.instrumentation.redis import RedisInstrumentor
+"""OpenTelemetry bootstrap — call configure_tracing(app) once at startup.
+
+All OTel imports are lazy so the service starts normally when OTEL_ENABLED=false
+even if opentelemetry-instrumentation is not installed.
+"""
 from app.core.config import settings
 
 
 def configure_tracing(app, sync_engine=None) -> None:
     if not settings.OTEL_ENABLED:
         return
+
+    from opentelemetry import trace
+    from opentelemetry.sdk.resources import Resource, SERVICE_NAME, SERVICE_VERSION
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+    from opentelemetry.instrumentation.redis import RedisInstrumentor
+
     resource = Resource.create({
         SERVICE_NAME: settings.APP_NAME,
         SERVICE_VERSION: settings.APP_VERSION,

@@ -19,7 +19,7 @@ from app.core.audit import AuditMiddleware
 from app.core.config import settings
 from app.core.exceptions import AccountingBaseError
 from app.core.metrics import setup_metrics
-from app.core.rate_limit import get_jwt_subject, get_user_limit
+from app.core.rate_limit import get_jwt_subject
 from app.db.session import AsyncSessionFactory, engine
 
 # ─── Logging structuré ────────────────────────────────────────────────────────
@@ -35,7 +35,7 @@ logger = structlog.get_logger(__name__)
 
 # ─── Rate limiter (partagé avec les routers via state) ───────────────────────
 
-limiter = Limiter(key_func=get_jwt_subject, default_limits=[get_user_limit])
+limiter = Limiter(key_func=get_jwt_subject, default_limits=["200/minute"])
 
 
 # ─── Lifecycle ────────────────────────────────────────────────────────────────
