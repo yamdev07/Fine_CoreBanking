@@ -1,6 +1,6 @@
 """Prometheus metrics for accounting-service."""
-from prometheus_fastapi_instrumentator import Instrumentator
 from prometheus_client import Counter, Gauge
+from prometheus_fastapi_instrumentator import Instrumentator
 
 journal_entries_total = Counter(
     "accounting_journal_entries_total",
