@@ -12,7 +12,12 @@ from app.core.security import AnyAuthenticated
 from app.db.session import get_session
 from app.models.auth import User
 from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse, UserOut
-from app.services.auth import authenticate_user, create_access_token, create_refresh_token, rotate_refresh_token
+from app.services.auth import (
+    authenticate_user,
+    create_access_token,
+    create_refresh_token,
+    rotate_refresh_token,
+)
 
 logger = structlog.get_logger(__name__)
 

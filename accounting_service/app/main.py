@@ -13,7 +13,17 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from app.api.v1 import accounts, auth, fiscal_years, health as health_router, journals, reports, users
+from app.api.v1 import (
+    accounts,
+    auth,
+    fiscal_years,
+    journals,
+    reports,
+    users,
+)
+from app.api.v1 import (
+    health as health_router,
+)
 from app.api.v1.journals import journals_router
 from app.core.audit import AuditMiddleware
 from app.core.config import settings

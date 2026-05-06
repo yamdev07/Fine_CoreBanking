@@ -1,5 +1,6 @@
 """Singleton Redis pool — import get_redis() everywhere instead of creating new connections."""
 import redis.asyncio as aioredis
+
 from app.core.config import settings
 
 _pool: aioredis.Redis | None = None
