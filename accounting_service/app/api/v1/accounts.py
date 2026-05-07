@@ -21,7 +21,14 @@ from app.core.exceptions import (
 from app.core.security import AdminOnly, AnyAuthenticated, WriteAccess
 from app.data.plan_templates import TEMPLATES, AccountDef
 from app.db.session import get_session
-from app.models.accounting import AccountClass, AccountNature, AccountPlan, AccountType, Journal, JournalCode
+from app.models.accounting import (
+    AccountClass,
+    AccountNature,
+    AccountPlan,
+    AccountType,
+    Journal,
+    JournalCode,
+)
 from app.schemas.accounting import (
     AccountBalanceResponse,
     AccountCreate,

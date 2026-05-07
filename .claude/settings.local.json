@@ -9,7 +9,24 @@
       "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/login -H \"Content-Type: application/json\" -d \"{\\\\\"username\\\\\":\\\\\"admin\\\\\",\\\\\"password\\\\\":\\\\\"Admin1234!\\\\\"}\")",
       "Bash(docker-compose ps *)",
       "PowerShell(Get-Content \"C:\\\\Users\\\\HPELIT~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-HP-ELITEBOOK-Desktop-dev-core-banking\\\\91afa8ee-0d89-4396-b03b-2d873a3e9cf4\\\\tasks\\\\bw5j074wi.output\" -Wait -Tail 60)",
-      "PowerShell(docker exec cb_accounting python -m pytest tests/ --tb=short -q 2>&1)"
+      "PowerShell(docker exec cb_accounting python -m pytest tests/ --tb=short -q 2>&1)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(curl -s http://localhost:8000/api/v1/accounts/ -H \"Authorization: Bearer test\" -w \"\\\\nHTTP %{http_code}\")",
+      "Bash(curl -s http://localhost:8001/health)",
+      "Bash(poetry install *)",
+      "Bash(poetry run *)",
+      "Bash(pip install *)",
+      "Bash(ruff --version)",
+      "Bash(ruff check *)",
+      "Bash(ruff format *)",
+      "Bash(python -m json.tool)",
+      "Bash(npm run *)",
+      "Bash(docker build *)",
+      "Bash(curl -s http://localhost:8000/api/v1/health/live)",
+      "Bash(curl -s http://localhost:8000/api/v1/health/ready)",
+      "Bash(curl -s http://localhost:8001/api/v1/health/live)"
     ]
   }
 }
