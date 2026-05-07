@@ -1,33 +1,48 @@
 """
 Point d'entrée — Microservice Reporting.
 """
-from contextlib import asynccontextmanager
 
 import asyncio
+from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
-from app.api.v1 import reports
+from app.api.v1 import health as health_router, reports
 from app.core.config import settings
 from app.core.exceptions import ReportingBaseError
+from app.core.metrics import setup_metrics
+from app.core.rate_limit import get_jwt_subject
 from app.db.session import engine
 
-structlog.configure(processors=[
-    structlog.processors.TimeStamper(fmt="iso"),
-    structlog.stdlib.add_log_level,
-    structlog.processors.JSONRenderer(),
-])
+structlog.configure(
+    processors=[
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.stdlib.add_log_level,
+        structlog.processors.JSONRenderer(),
+    ]
+)
 logger = structlog.get_logger(__name__)
+
+
+limiter = Limiter(key_func=get_jwt_subject, default_limits=["200/minute"])
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("reporting_service.starting", version=settings.APP_VERSION)
 
+    # Distributed tracing
+    from app.core.telemetry import configure_tracing
+    configure_tracing(app)
+
     from app.services.kafka_consumer import run_cache_invalidation_consumer
+
     kafka_task = asyncio.create_task(run_cache_invalidation_consumer())
 
     yield
@@ -37,6 +52,8 @@ async def lifespan(app: FastAPI):
         await kafka_task
     except asyncio.CancelledError:
         pass
+    from app.core.redis_pool import close_redis_pool
+    await close_redis_pool()
     await engine.dispose()
     logger.info("reporting_service.stopped")
 
@@ -72,13 +89,27 @@ Tous les endpoints acceptent `?format=json|pdf|excel`
     redoc_url="/redoc",
 )
 
+# ─── Metrics ─────────────────────────────────────────────────────────────────
+
+setup_metrics(app)
+
+# ─── Rate limiting ────────────────────────────────────────────────────────────
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# ─── CORS ─────────────────────────────────────────────────────────────────────
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if settings.DEBUG else [],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["GET"],  # Lecture seule — aucun POST/PUT/DELETE
     allow_headers=["*"],
 )
+
+# SlowAPIMiddleware added last so Starlette applies it first (outermost layer)
+app.add_middleware(SlowAPIMiddleware)
 
 
 @app.exception_handler(ReportingBaseError)
@@ -99,16 +130,7 @@ async def generic_error_handler(request: Request, exc: Exception):
 
 
 app.include_router(reports.router, prefix="/api/v1")
-
-
-@app.get("/health", tags=["Santé"])
-async def health():
-    return {
-        "status": "healthy",
-        "service": settings.APP_NAME,
-        "version": settings.APP_VERSION,
-        "mode": "read-only",
-    }
+app.include_router(health_router.router, prefix="/api/v1")
 
 
 @app.get("/", tags=["Info"])

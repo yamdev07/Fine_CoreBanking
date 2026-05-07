@@ -24,7 +24,7 @@ export default function NewJournalEntryPage() {
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
-    journal_code: "",
+    journal_id: "",
     entry_date: today(),
     description: "",
     reference: "",
@@ -62,10 +62,12 @@ export default function NewJournalEntryPage() {
     setSaving(true);
     setError("");
     try {
+      // Résoudre les codes de comptes en IDs
+      const accountByCode = Object.fromEntries(accounts.map((a) => [a.code, a.id]));
       await createJournalEntry({
         ...form,
         lines: lines.map((l) => ({
-          account_code: l.account_code,
+          account_id: accountByCode[l.account_code] ?? l.account_code,
           debit_amount: parseFloat(l.debit_amount) || 0,
           credit_amount: parseFloat(l.credit_amount) || 0,
           description: l.description || undefined,
@@ -98,13 +100,13 @@ export default function NewJournalEntryPage() {
                 <label className="label">Journal *</label>
                 <select
                   required
-                  value={form.journal_code}
-                  onChange={(e) => setForm({ ...form, journal_code: e.target.value })}
+                  value={form.journal_id}
+                  onChange={(e) => setForm({ ...form, journal_id: e.target.value })}
                   className="input"
                 >
                   <option value="">Sélectionner un journal</option>
                   {journals.map((j) => (
-                    <option key={j.id} value={j.code}>{j.code} — {j.name}</option>
+                    <option key={j.id} value={j.id}>{j.code} — {j.name}</option>
                   ))}
                 </select>
               </div>

@@ -4,14 +4,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import { PageLoader, ErrorBox } from "@/components/ui/Spinner";
-import { getJournalEntries, postJournalEntry, cancelJournalEntry, type JournalEntry } from "@/lib/api/accounting";
+import { getJournalEntries, postJournalEntry, reverseJournalEntry, type JournalEntry } from "@/lib/api/accounting";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Plus, CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: "Brouillon",
   POSTED: "Validée",
-  CANCELLED: "Annulée",
+  REVERSED: "Extournée",
 };
 
 export default function JournalsPage() {
@@ -45,11 +45,12 @@ export default function JournalsPage() {
     }
   };
 
-  const handleCancel = async (id: string) => {
-    if (!confirm("Annuler cette écriture ?")) return;
+  const handleReverse = async (id: string) => {
+    const today = new Date().toISOString().split("T")[0];
+    if (!confirm("Extourner cette écriture ? Une écriture miroir sera créée.")) return;
     try {
-      await cancelJournalEntry(id);
-      setMsg("Écriture annulée.");
+      await reverseJournalEntry(id, today);
+      setMsg("Écriture extournée.");
       load();
     } catch (e: unknown) {
       setMsg(e instanceof Error ? e.message : "Erreur");
@@ -75,7 +76,7 @@ export default function JournalsPage() {
               <option value="">Tous les statuts</option>
               <option value="DRAFT">Brouillons</option>
               <option value="POSTED">Validées</option>
-              <option value="CANCELLED">Annulées</option>
+              <option value="REVERSED">Extournées</option>
             </select>
           </div>
           <Link href="/journals/new" className="btn-primary">
@@ -114,21 +115,21 @@ export default function JournalsPage() {
                       <td className="td">
                         <span className={
                           e.status === "POSTED" ? "badge-green" :
-                          e.status === "CANCELLED" ? "badge-red" : "badge-yellow"
+                          e.status === "REVERSED" ? "badge-red" : "badge-yellow"
                         }>
                           {STATUS_LABELS[e.status]}
                         </span>
                       </td>
                       <td className="td">
                         {e.status === "DRAFT" && (
-                          <div className="flex items-center gap-1">
-                            <button onClick={() => handlePost(e.id)} className="btn-ghost text-xs text-emerald-700">
-                              <CheckCircle className="w-3.5 h-3.5" /> Valider
-                            </button>
-                            <button onClick={() => handleCancel(e.id)} className="btn-ghost text-xs text-red-600">
-                              <XCircle className="w-3.5 h-3.5" /> Annuler
-                            </button>
-                          </div>
+                          <button onClick={() => handlePost(e.id)} className="btn-ghost text-xs text-emerald-700">
+                            <CheckCircle className="w-3.5 h-3.5" /> Valider
+                          </button>
+                        )}
+                        {e.status === "POSTED" && (
+                          <button onClick={() => handleReverse(e.id)} className="btn-ghost text-xs text-amber-600">
+                            <XCircle className="w-3.5 h-3.5" /> Extourner
+                          </button>
                         )}
                       </td>
                     </tr>

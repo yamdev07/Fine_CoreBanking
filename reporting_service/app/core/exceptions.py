@@ -1,4 +1,5 @@
 """Exceptions métier du microservice Reporting."""
+
 from typing import Any
 
 
@@ -39,5 +40,6 @@ class ExportError(ReportingBaseError):
 
 class PeriodNotClosedError(ReportingBaseError):
     """Certains rapports réglementaires nécessitent une période clôturée."""
+
     status_code = 422
     error_code = "PERIOD_NOT_CLOSED"

@@ -5,8 +5,8 @@ import React, {
 } from "react";
 import { useRouter } from "next/navigation";
 import type { AuthUser } from "@/lib/auth";
-import { clearAuth, loadAuth, saveAuth } from "@/lib/auth";
-import { login as apiLogin } from "@/lib/api/auth";
+import { clearAuth, getRefreshToken, isExpiringSoon, loadAuth, saveAuth } from "@/lib/auth";
+import { login as apiLogin, refreshTokenApi } from "@/lib/api/auth";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (username: string, password: string) => {
     const data = await apiLogin(username, password);
-    saveAuth(data.access_token, data.user, data.expires_in);
+    saveAuth(data.access_token, data.refresh_token, data.user, data.expires_in);
     setToken(data.access_token);
     setUser(data.user);
     router.push("/dashboard");
@@ -47,6 +47,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     router.push("/login");
   }, [router]);
+
+  useEffect(() => {
+    const checkRefresh = async () => {
+      const state = loadAuth();
+      if (!state) return;
+      if (isExpiringSoon()) {
+        try {
+          const data = await refreshTokenApi(state.refresh_token);
+          saveAuth(data.access_token, data.refresh_token, data.user, data.expires_in);
+          setToken(data.access_token);
+          setUser(data.user);
+        } catch {
+          logout();
+        }
+      }
+    };
+    const id = setInterval(checkRefresh, 60_000);
+    return () => clearInterval(id);
+  }, [logout]);
 
   return (
     <AuthContext.Provider value={{ user, token, loading, login, logout }}>

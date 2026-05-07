@@ -7,7 +7,7 @@ import {
   LayoutDashboard, BookOpen, CalendarDays, FileText,
   BarChart3, TrendingUp, Scale, Activity, Wallet,
   PiggyBank, ShieldCheck, BookMarked, ChevronDown,
-  LogOut, Users, Landmark,
+  LogOut, Users, Landmark, Settings2,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/context/auth";
@@ -58,7 +58,8 @@ function buildNav(role: UserRole | undefined): NavItem[] {
       label: "Administration", icon: Users,
       adminOnly: true,
       children: [
-        { label: "Utilisateurs", href: "/users", icon: Users },
+        { label: "Utilisateurs",         href: "/users",                icon: Users },
+        { label: "Plan comptable",        href: "/settings/plan-setup",  icon: Settings2 },
       ],
     },
   ];
@@ -72,7 +73,7 @@ function buildNav(role: UserRole | undefined): NavItem[] {
 function NavGroup({ item }: { item: NavItem }) {
   const pathname = usePathname();
   const isChildActive = item.children?.some((c) => c.href && pathname.startsWith(c.href));
-  const [open, setOpen] = useState(isChildActive ?? true);
+  const [open, setOpen] = useState(true);
 
   return (
     <div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Header from "@/components/layout/Header";
 import { PageLoader, ErrorBox } from "@/components/ui/Spinner";
+import { getToken } from "@/lib/auth";
 import { formatCurrency, formatPct, today, startOfYear } from "@/lib/utils";
 
 const REPORTING_URL = process.env.NEXT_PUBLIC_REPORTING_URL ?? "http://localhost:8001";
@@ -18,8 +19,15 @@ export default function DepositsPage() {
   const load = () => {
     setLoading(true);
     setError("");
-    fetch(`${REPORTING_URL}/api/v1/reports/deposits?as_of_date=${asOf}&start_date=${startDate}&end_date=${endDate}`)
-      .then((r) => r.json())
+    const token = getToken();
+    fetch(`${REPORTING_URL}/api/v1/reports/deposits?as_of_date=${asOf}&start_date=${startDate}&end_date=${endDate}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(typeof json?.detail === "string" ? json.detail : r.statusText);
+        return json;
+      })
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));

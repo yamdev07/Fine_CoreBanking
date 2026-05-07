@@ -20,6 +20,8 @@ volumes:
   postgres_data:
   redis_accounting_data:
   redis_reporting_data:
+  prometheus_data:
+  grafana_data:
 
 services:
 
@@ -110,12 +112,16 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      # Topics pré-créés avec rétention 7 jours
+      # Topics pré-créés avec rétention 7 jours (+ DLQ topics)
       KAFKA_CREATE_TOPICS: >-
         credit.events:1:1,
         savings.events:1:1,
         cash.events:1:1,
-        accounting.events:1:1
+        accounting.events:1:1,
+        credit.events.dlq:1:1,
+        savings.events.dlq:1:1,
+        cash.events.dlq:1:1,
+        accounting.events.dlq:1:1
     healthcheck:
       test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
       interval: 10s
@@ -165,7 +171,10 @@ services:
       KAFKA_TOPIC_CASH_EVENTS: cash.events
       KAFKA_TOPIC_ACCOUNTING_EVENTS: accounting.events
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-development}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
       DEFAULT_CURRENCY: XOF
+      OTEL_ENABLED: "false"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
     command: >
       sh -c "
         alembic upgrade head &&
@@ -173,7 +182,7 @@ services:
         uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
       "
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/v1/health/ready || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -206,24 +215,67 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9093
       KAFKA_TOPIC_ACCOUNTING_EVENTS: accounting.events
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-development}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
       INSTITUTION_NAME: ${INSTITUTION_NAME:-Ma Banque / IMF}
       INSTITUTION_COUNTRY: BJ
+      OTEL_ENABLED: "false"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
     command: >
       uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8001/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8001/api/v1/health/ready || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # ─── Jaeger — distributed tracing ───────────────────────────────────────────
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    container_name: cb_jaeger
+    restart: unless-stopped
+    networks: [core-banking]
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+
+  # ─── Prometheus — metrics scraping ───────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: cb_prometheus
+    restart: unless-stopped
+    networks: [core-banking]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=30d"
+
+  # ─── Grafana — dashboards ─────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: cb_grafana
+    restart: unless-stopped
+    networks: [core-banking]
+    depends_on: [prometheus]
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+
   # ─── Frontend Next.js (port 3000) ────────────────────────────────────────────
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_ACCOUNTING_URL: http://localhost:8000
-        NEXT_PUBLIC_REPORTING_URL: http://localhost:8001
+    image: core-banking-frontend:latest
     container_name: cb_frontend
     restart: unless-stopped
     networks: [core-banking]

@@ -2,7 +2,9 @@
 Configuration du microservice Reporting.
 Se connecte à la base de données comptabilité en LECTURE SEULE.
 """
+
 from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,12 +27,19 @@ class Settings(BaseSettings):
 
     # Redis — cache des rapports lourds (balance, bilan)
     REDIS_URL: str = "redis://localhost:6379/1"
-    CACHE_TTL_SECONDS: int = 300          # 5 minutes par défaut
-    CACHE_TTL_ANNUAL_REPORT: int = 3600   # 1h pour les rapports annuels
+    CACHE_TTL_SECONDS: int = 300  # 5 minutes par défaut
+    CACHE_TTL_ANNUAL_REPORT: int = 3600  # 1h pour les rapports annuels
 
     # Sécurité JWT (partagée avec l'API Gateway)
     JWT_SECRET_KEY: str = "change-me-in-production"
     JWT_ALGORITHM: str = "HS256"
+
+    # CORS
+    CORS_ALLOWED_ORIGINS: str = "http://localhost:3000"
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [o.strip() for o in self.CORS_ALLOWED_ORIGINS.split(",") if o.strip()]
 
     # Monnaie
     DEFAULT_CURRENCY: str = "XOF"
@@ -40,6 +49,10 @@ class Settings(BaseSettings):
     # Pagination
     DEFAULT_PAGE_SIZE: int = 50
     MAX_PAGE_SIZE: int = 1000
+
+    # OpenTelemetry
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://jaeger:4317"
+    OTEL_ENABLED: bool = False
 
     # Kafka — écoute les événements de l'accounting pour invalider le cache
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"

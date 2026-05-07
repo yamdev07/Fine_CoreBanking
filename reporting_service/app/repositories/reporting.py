@@ -2,9 +2,9 @@
 Repository Reporting — Requêtes SQL en lecture seule sur la base comptabilité.
 Toutes les requêtes utilisent des vues agrégées pour la performance.
 """
+
 from datetime import date
 from decimal import Decimal
-from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,9 +31,7 @@ class ReportingRepository:
     # ─── Exercice fiscal ──────────────────────────────────────────────────────
 
     async def get_fiscal_years(self) -> list[dict]:
-        return await self._fetch(
-            "SELECT * FROM fiscal_years ORDER BY start_date DESC", {}
-        )
+        return await self._fetch("SELECT * FROM fiscal_years ORDER BY start_date DESC", {})
 
     async def get_fiscal_year_by_id(self, fiscal_year_id: str) -> dict | None:
         return await self._fetch_one(
@@ -64,9 +62,7 @@ class ReportingRepository:
 
     # ─── Balance générale ─────────────────────────────────────────────────────
 
-    async def get_trial_balance(
-        self, start_date: date, end_date: date
-    ) -> list[dict]:
+    async def get_trial_balance(self, start_date: date, end_date: date) -> list[dict]:
         """
         Balance avec soldes d'ouverture, mouvements de période, et soldes de clôture.
         L'ouverture = cumul de toutes les écritures AVANT start_date.
@@ -126,9 +122,7 @@ class ReportingRepository:
 
     # ─── Grand livre ──────────────────────────────────────────────────────────
 
-    async def get_account_opening_balance(
-        self, account_id: str, before_date: date
-    ) -> dict:
+    async def get_account_opening_balance(self, account_id: str, before_date: date) -> dict:
         row = await self._fetch_one(
             """
             SELECT
@@ -145,8 +139,12 @@ class ReportingRepository:
         return row or {"total_debit": Decimal("0"), "total_credit": Decimal("0")}
 
     async def get_general_ledger(
-        self, account_id: str, start_date: date, end_date: date,
-        offset: int = 0, limit: int = 500,
+        self,
+        account_id: str,
+        start_date: date,
+        end_date: date,
+        offset: int = 0,
+        limit: int = 500,
     ) -> list[dict]:
         return await self._fetch(
             """
@@ -191,7 +189,9 @@ class ReportingRepository:
     # ─── Bilan — agrégat par classe de comptes ────────────────────────────────
 
     async def get_balance_by_account_class(
-        self, end_date: date, account_classes: list[str],
+        self,
+        end_date: date,
+        account_classes: list[str],
         account_type: str | None = None,
     ) -> list[dict]:
         """Soldes à une date donnée, filtrés par classe(s) et optionnellement par type (ACTIF/PASSIF)."""
@@ -259,9 +259,7 @@ class ReportingRepository:
 
     # ─── Compte de résultat ───────────────────────────────────────────────────
 
-    async def get_charges_produits(
-        self, start_date: date, end_date: date
-    ) -> list[dict]:
+    async def get_charges_produits(self, start_date: date, end_date: date) -> list[dict]:
         """Mouvements des classes 6 (charges) et 7 (produits) sur la période."""
         return await self._fetch(
             """
@@ -277,7 +275,7 @@ class ReportingRepository:
             JOIN journal_entries je ON je.id = jl.entry_id
             WHERE je.status = 'POSTED'
               AND je.entry_date BETWEEN :start_date AND :end_date
-              AND ap.account_class IN ('6', '7')
+              AND ap.account_class IN ('CHARGES', 'PRODUITS')
               AND ap.is_leaf = TRUE
             GROUP BY ap.id, ap.code, ap.name, ap.account_class, ap.account_type
             ORDER BY ap.code
@@ -350,9 +348,7 @@ class ReportingRepository:
             {"as_of_date": as_of_date},
         )
 
-    async def get_interest_charges(
-        self, start_date: date, end_date: date
-    ) -> Decimal:
+    async def get_interest_charges(self, start_date: date, end_date: date) -> Decimal:
         """Charges d'intérêts sur dépôts (663xxx) de la période."""
         row = await self._fetch_one(
             """
@@ -416,9 +412,7 @@ class ReportingRepository:
 
     # ─── Journal centralisateur ───────────────────────────────────────────────
 
-    async def get_journal_centralizer(
-        self, start_date: date, end_date: date
-    ) -> list[dict]:
+    async def get_journal_centralizer(self, start_date: date, end_date: date) -> list[dict]:
         return await self._fetch(
             """
             SELECT
@@ -439,16 +433,14 @@ class ReportingRepository:
 
     # ─── KPIs rapides ─────────────────────────────────────────────────────────
 
-    async def get_net_income(
-        self, start_date: date, end_date: date
-    ) -> Decimal:
+    async def get_net_income(self, start_date: date, end_date: date) -> Decimal:
         """Résultat net = Produits (cl.7) - Charges (cl.6)."""
         row = await self._fetch_one(
             """
             SELECT
-                COALESCE(SUM(CASE WHEN ap.account_class = '7'
+                COALESCE(SUM(CASE WHEN ap.account_class = 'PRODUITS'
                     THEN jl.credit_amount - jl.debit_amount ELSE 0 END), 0) -
-                COALESCE(SUM(CASE WHEN ap.account_class = '6'
+                COALESCE(SUM(CASE WHEN ap.account_class = 'CHARGES'
                     THEN jl.debit_amount - jl.credit_amount ELSE 0 END), 0)
                 AS resultat_net
             FROM journal_lines jl
@@ -456,7 +448,7 @@ class ReportingRepository:
             JOIN account_plans ap ON ap.id = jl.account_id
             WHERE je.status = 'POSTED'
               AND je.entry_date BETWEEN :start_date AND :end_date
-              AND ap.account_class IN ('6', '7')
+              AND ap.account_class IN ('CHARGES', 'PRODUITS')
             """,
             {"start_date": start_date, "end_date": end_date},
         )
@@ -474,7 +466,7 @@ class ReportingRepository:
             JOIN account_plans ap ON ap.id = jl.account_id
             WHERE je.status = 'POSTED'
               AND je.entry_date <= :as_of_date
-              AND ap.account_class = '1'
+              AND ap.account_class = 'CAPITAL'
               AND ap.is_leaf = TRUE
             """,
             {"as_of_date": as_of_date},
