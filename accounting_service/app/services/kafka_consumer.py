@@ -370,7 +370,7 @@ async def run_consumer() -> None:
                     break
                 except Exception as exc:
                     last_exc = exc
-                    wait = 2 ** attempt
+                    wait = 2**attempt
                     logger.warning(
                         "kafka.retry",
                         attempt=attempt,

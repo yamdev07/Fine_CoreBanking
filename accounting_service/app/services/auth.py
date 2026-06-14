@@ -54,6 +54,7 @@ REFRESH_PREFIX = "refresh:"
 
 async def create_refresh_token(user_id: str) -> str:
     from app.core.redis_pool import get_redis
+
     token = secrets.token_urlsafe(48)
     r = await get_redis()
     await r.setex(f"{REFRESH_PREFIX}{token}", REFRESH_TOKEN_TTL, user_id)
@@ -63,6 +64,7 @@ async def create_refresh_token(user_id: str) -> str:
 async def rotate_refresh_token(old_token: str) -> str | None:
     """Atomically invalidate old token and return user_id, or None if invalid."""
     from app.core.redis_pool import get_redis
+
     r = await get_redis()
     user_id = await r.getdel(f"{REFRESH_PREFIX}{old_token}")
     return user_id

@@ -122,7 +122,7 @@ async def run_cache_invalidation_consumer() -> None:
                     break
                 except Exception as exc:
                     last_exc = exc
-                    wait = 2 ** attempt
+                    wait = 2**attempt
                     logger.warning(
                         "kafka.cache_invalidation.retry",
                         attempt=attempt,

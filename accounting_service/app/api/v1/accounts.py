@@ -312,12 +312,24 @@ CSV_TEMPLATE = (
 )
 
 ACCOUNT_CLASS_VALUES: dict[str, str] = {
-    "1": "CAPITAL", "2": "IMMOBILISE", "3": "STOCK",
-    "4": "TIERS", "5": "TRESORERIE", "6": "CHARGES", "7": "PRODUITS",
-    "8": "SPECIAUX", "9": "ANALYTIQUE",
-    "CAPITAL": "CAPITAL", "IMMOBILISE": "IMMOBILISE", "STOCK": "STOCK",
-    "TIERS": "TIERS", "TRESORERIE": "TRESORERIE", "CHARGES": "CHARGES",
-    "PRODUITS": "PRODUITS", "SPECIAUX": "SPECIAUX", "ANALYTIQUE": "ANALYTIQUE",
+    "1": "CAPITAL",
+    "2": "IMMOBILISE",
+    "3": "STOCK",
+    "4": "TIERS",
+    "5": "TRESORERIE",
+    "6": "CHARGES",
+    "7": "PRODUITS",
+    "8": "SPECIAUX",
+    "9": "ANALYTIQUE",
+    "CAPITAL": "CAPITAL",
+    "IMMOBILISE": "IMMOBILISE",
+    "STOCK": "STOCK",
+    "TIERS": "TIERS",
+    "TRESORERIE": "TRESORERIE",
+    "CHARGES": "CHARGES",
+    "PRODUITS": "PRODUITS",
+    "SPECIAUX": "SPECIAUX",
+    "ANALYTIQUE": "ANALYTIQUE",
 }
 
 
@@ -388,16 +400,18 @@ def _parse_pdf_rows(content: bytes) -> list[dict]:
                     if not code or not name:
                         continue
 
-                    rows.append({
-                        "code": code,
-                        "name": name,
-                        "account_class": get("account_class") or get("classe"),
-                        "account_type": get("account_type") or get("type"),
-                        "account_nature": get("account_nature") or get("nature"),
-                        "parent_code": get("parent_code") or get("parent"),
-                        "allow_manual_entry": get("allow_manual_entry") or "true",
-                        "description": get("description") or get("description"),
-                    })
+                    rows.append(
+                        {
+                            "code": code,
+                            "name": name,
+                            "account_class": get("account_class") or get("classe"),
+                            "account_type": get("account_type") or get("type"),
+                            "account_nature": get("account_nature") or get("nature"),
+                            "parent_code": get("parent_code") or get("parent"),
+                            "allow_manual_entry": get("allow_manual_entry") or "true",
+                            "description": get("description") or get("description"),
+                        }
+                    )
 
     if not rows:
         raise HTTPException(
@@ -416,7 +430,7 @@ def _parse_pdf_rows(content: bytes) -> list[dict]:
         raise HTTPException(
             status_code=422,
             detail=f"Colonnes requises vides dans le PDF : {', '.join(empty_required)}. "
-                   f"Colonnes attendues : {', '.join(sorted(REQUIRED_COLS))}",
+            f"Colonnes attendues : {', '.join(sorted(REQUIRED_COLS))}",
         )
     return rows
 
@@ -500,7 +514,9 @@ async def import_accounts(
             continue
 
         # Validate enums — normalize numeric class values ("1" → "CAPITAL")
-        raw_class = ACCOUNT_CLASS_VALUES.get(row["account_class"].strip().upper(), row["account_class"].strip())
+        raw_class = ACCOUNT_CLASS_VALUES.get(
+            row["account_class"].strip().upper(), row["account_class"].strip()
+        )
         try:
             acc_class = AccountClass(raw_class)
             acc_type = AccountType(row["account_type"].strip())

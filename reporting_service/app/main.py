@@ -13,7 +13,8 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from app.api.v1 import health as health_router, reports
+from app.api.v1 import health as health_router
+from app.api.v1 import reports
 from app.core.config import settings
 from app.core.exceptions import ReportingBaseError
 from app.core.metrics import setup_metrics
@@ -39,6 +40,7 @@ async def lifespan(app: FastAPI):
 
     # Distributed tracing
     from app.core.telemetry import configure_tracing
+
     configure_tracing(app)
 
     from app.services.kafka_consumer import run_cache_invalidation_consumer
@@ -53,6 +55,7 @@ async def lifespan(app: FastAPI):
     except asyncio.CancelledError:
         pass
     from app.core.redis_pool import close_redis_pool
+
     await close_redis_pool()
     await engine.dispose()
     logger.info("reporting_service.stopped")

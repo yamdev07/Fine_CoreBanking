@@ -239,6 +239,16 @@ async def api_client(engine):
             patch("app.services.auth.seed_admin", new_callable=AsyncMock),
             patch("app.services.kafka_consumer.run_consumer", new_callable=AsyncMock),
             patch("app.services.kafka_producer._publish", new_callable=AsyncMock),
+            patch(
+                "app.api.v1.auth.create_refresh_token",
+                new_callable=AsyncMock,
+                return_value="test-refresh-token",
+            ),
+            patch(
+                "app.api.v1.auth.rotate_refresh_token",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
         ):
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"

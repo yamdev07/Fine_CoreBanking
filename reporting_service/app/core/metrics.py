@@ -1,6 +1,7 @@
 """Prometheus metrics for reporting-service."""
-from prometheus_fastapi_instrumentator import Instrumentator
+
 from prometheus_client import Counter
+from prometheus_fastapi_instrumentator import Instrumentator
 
 reporting_requests_total = Counter(
     "reporting_requests_total",
@@ -17,6 +18,7 @@ cache_misses_total = Counter(
     "Redis cache misses for report queries",
     ["report_type"],
 )
+
 
 def setup_metrics(app) -> None:
     Instrumentator(
