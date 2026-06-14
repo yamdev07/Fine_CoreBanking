@@ -13,7 +13,8 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from app.api.v1 import health as health_router, reports
+from app.api.v1 import health as health_router
+from app.api.v1 import reports
 from app.core.config import settings
 from app.core.exceptions import ReportingBaseError
 from app.core.metrics import setup_metrics

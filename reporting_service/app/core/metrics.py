@@ -1,6 +1,6 @@
 """Prometheus metrics for reporting-service."""
-from prometheus_fastapi_instrumentator import Instrumentator
 from prometheus_client import Counter
+from prometheus_fastapi_instrumentator import Instrumentator
 
 reporting_requests_total = Counter(
     "reporting_requests_total",
