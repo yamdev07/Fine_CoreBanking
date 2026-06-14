@@ -1,4 +1,5 @@
 """Prometheus metrics for accounting-service."""
+
 from prometheus_client import Counter, Gauge
 from prometheus_fastapi_instrumentator import Instrumentator
 
@@ -16,6 +17,7 @@ db_pool_checked_out = Gauge(
     "accounting_db_pool_checked_out",
     "Number of DB connections currently checked out",
 )
+
 
 def setup_metrics(app) -> None:
     Instrumentator(

@@ -3,6 +3,7 @@ Health check endpoints — liveness + readiness.
 Liveness: is the process alive? (no external checks)
 Readiness: are all dependencies available? (DB + Redis + Kafka)
 """
+
 import time
 
 import sqlalchemy
@@ -36,7 +37,10 @@ async def readiness():
         t0 = time.monotonic()
         async with engine.connect() as conn:
             await conn.execute(sqlalchemy.text("SELECT 1"))
-        checks["database"] = {"status": "ok", "latency_ms": round((time.monotonic() - t0) * 1000, 2)}
+        checks["database"] = {
+            "status": "ok",
+            "latency_ms": round((time.monotonic() - t0) * 1000, 2),
+        }
     except Exception as exc:
         logger.error("health.database_error", error=str(exc))
         checks["database"] = {"status": "error", "detail": str(exc)}
@@ -44,6 +48,7 @@ async def readiness():
     # Redis
     try:
         from app.core.redis_pool import get_redis
+
         r = await get_redis()
         t0 = time.monotonic()
         await r.ping()
@@ -55,6 +60,7 @@ async def readiness():
     # Kafka
     try:
         from aiokafka.admin import AIOKafkaAdminClient
+
         t0 = time.monotonic()
         admin = AIOKafkaAdminClient(
             bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,

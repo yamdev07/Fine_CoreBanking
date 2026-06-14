@@ -57,6 +57,7 @@ async def lifespan(app: FastAPI):
 
     # Distributed tracing
     from app.core.telemetry import configure_tracing
+
     configure_tracing(app)
 
     # Seed admin par défaut
@@ -88,6 +89,7 @@ async def lifespan(app: FastAPI):
         pass
     await stop_producer()
     from app.core.redis_pool import close_redis_pool
+
     await close_redis_pool()
     await engine.dispose()
     logger.info("accounting_service.stopped")

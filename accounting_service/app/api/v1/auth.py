@@ -57,18 +57,25 @@ async def refresh(
 ):
     """Échange un refresh token valide contre une nouvelle paire de tokens."""
     from sqlalchemy import select
+
     user_id = await rotate_refresh_token(body.refresh_token)
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error_code": "REFRESH_TOKEN_INVALID", "message": "Refresh token invalide ou expiré."},
+            detail={
+                "error_code": "REFRESH_TOKEN_INVALID",
+                "message": "Refresh token invalide ou expiré.",
+            },
         )
     result = await session.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user is None or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error_code": "USER_INACTIVE", "message": "Utilisateur inactif ou introuvable."},
+            detail={
+                "error_code": "USER_INACTIVE",
+                "message": "Utilisateur inactif ou introuvable.",
+            },
         )
     token, expires_in = create_access_token(user)
     new_refresh = await create_refresh_token(user.id)
