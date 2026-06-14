@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CoreBanking — Rapport de Tests de Charge k6</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #F1F5F9; color: #1E293B; }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #1E1B4B 0%, #3730A3 50%, #4F46E5 100%);
+      color: white; padding: 32px 40px;
+    }
+    .header h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.025em; }
+    .header p  { margin-top: 6px; opacity: 0.75; font-size: 0.875rem; }
+    .header-meta {
+      display: flex; gap: 24px; margin-top: 20px; flex-wrap: wrap;
+    }
+    .meta-chip {
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px; padding: 6px 14px; font-size: 0.8rem; font-weight: 600;
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+    .section-title {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #64748B; margin-bottom: 14px; margin-top: 32px;
+    }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    @media (max-width: 900px) { .grid-4 { grid-template-columns: repeat(2,1fr); } .grid-2,.grid-3 { grid-template-columns: 1fr; } }
+
+    /* ── Cards ── */
+    .card {
+      background: white; border-radius: 16px; border: 1px solid #E2E8F0;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+      padding: 20px;
+    }
+    .card-title { font-size: 0.75rem; font-weight: 600; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* ── KPI cards ── */
+    .kpi { border-radius: 16px; padding: 20px; color: white; position: relative; overflow: hidden; }
+    .kpi::after {
+      content: ''; position: absolute; right: -12px; top: -12px;
+      width: 80px; height: 80px; border-radius: 50%; background: rgba(255,255,255,0.1);
+    }
+    .kpi.indigo { background: linear-gradient(135deg, #4F46E5, #6366F1); }
+    .kpi.emerald { background: linear-gradient(135deg, #10B981, #34D399); }
+    .kpi.rose   { background: linear-gradient(135deg, #F43F5E, #FB7185); }
+    .kpi.amber  { background: linear-gradient(135deg, #F59E0B, #FCD34D); color: #78350F; }
+    .kpi-value { font-size: 1.75rem; font-weight: 800; margin-top: 12px; letter-spacing: -0.03em; }
+    .kpi-unit  { font-size: 0.75rem; opacity: 0.75; margin-top: 2px; font-weight: 600; }
+    .kpi-label { font-size: 0.7rem; opacity: 0.8; margin-top: 10px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+
+    /* ── Status badge ── */
+    .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
+    .badge-ok  { background: #DCFCE7; color: #166534; }
+    .badge-err { background: #FEE2E2; color: #991B1B; }
+
+    /* ── Threshold table ── */
+    .th-table { width: 100%; border-collapse: collapse; }
+    .th-table th { text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #94A3B8; padding: 8px 12px; background: #F8FAFC; border-bottom: 1px solid #E2E8F0; }
+    .th-table td { padding: 10px 12px; font-size: 0.85rem; border-bottom: 1px solid #F1F5F9; }
+    .th-table tr:last-child td { border: none; }
+    .th-table tr:hover td { background: #F8FAFC; }
+    .mono { font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 0.82rem; }
+
+    /* ── Endpoint table ── */
+    .ep-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #F1F5F9; }
+    .ep-row:last-child { border: none; }
+    .ep-name { flex: 1; font-size: 0.85rem; font-weight: 600; color: #334155; }
+    .ep-badge { font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; }
+    .ep-val { font-family: monospace; font-size: 0.8rem; color: #64748B; min-width: 80px; text-align: right; }
+    .bar-wrap { flex: 2; height: 8px; background: #F1F5F9; border-radius: 4px; overflow: hidden; }
+    .bar-fill  { height: 100%; border-radius: 4px; transition: width .3s; }
+
+    /* ── Footer ── */
+    .footer { margin-top: 48px; padding: 24px; text-align: center; font-size: 0.75rem; color: #94A3B8; }
+    .status-ok   { color: #16A34A; }
+    .status-warn { color: #D97706; }
+    .status-err  { color: #DC2626; }
+
+    canvas { max-height: 260px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="header">
+  <h1>CoreBanking — Rapport de Tests de Charge</h1>
+  <p>Système de comptabilité bancaire BCEAO · Microservices FastAPI + PostgreSQL + Kafka</p>
+  <div class="header-meta">
+    <div class="meta-chip">🖥 HP Elitebook · Windows 11</div>
+    <div class="meta-chip">⚙ Docker Compose · Local</div>
+    <div class="meta-chip">📅 13 Juin 2026</div>
+    <div class="meta-chip">🔧 k6 v2.0.0</div>
+    <div class="meta-chip">🐍 FastAPI + PostgreSQL 16</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ── Scénario 1 : Charge Nominale ── -->
+  <p class="section-title">Scénario 1 — Charge Nominale (100 VU · 5 min)</p>
+
+  <div class="grid-4">
+    <div class="kpi indigo">
+      <div class="card-title" style="color:rgba(255,255,255,0.75)">Débit</div>
+      <div class="kpi-value">71.1</div>
+      <div class="kpi-unit">requêtes / seconde</div>
+      <div class="kpi-label">Throughput</div>
+    </div>
+    <div class="kpi emerald">
+      <div class="card-title" style="color:rgba(255,255,255,0.75)">Latence P50</div>
+      <div class="kpi-value">22 ms</div>
+      <div class="kpi-unit">médiane</div>
+      <div class="kpi-label">Temps de réponse</div>
+    </div>
+    <div class="kpi rose">
+      <div class="card-title" style="color:rgba(255,255,255,0.75)">Taux d'erreur</div>
+      <div class="kpi-value">3.74 %</div>
+      <div class="kpi-unit">health check sous charge</div>
+      <div class="kpi-label">Erreurs</div>
+    </div>
+    <div class="kpi amber">
+      <div class="card-title" style="opacity:0.75">Requêtes totales</div>
+      <div class="kpi-value">22 538</div>
+      <div class="kpi-unit">en 5 minutes</div>
+      <div class="kpi-label">Volume</div>
+    </div>
+  </div>
+
+  <!-- ── Charts row 1 ── -->
+  <div class="grid-2" style="margin-top:20px">
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:16px">Latences par percentile (ms)</div>
+      <canvas id="latencyChart"></canvas>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:16px">Distribution des checks</div>
+      <canvas id="checksChart"></canvas>
+    </div>
+  </div>
+
+  <!-- ── Thresholds ── -->
+  <div class="card" style="margin-top:20px">
+    <div class="card-title" style="margin-bottom:16px">Seuils de performance (Charge nominale)</div>
+    <table class="th-table">
+      <thead><tr>
+        <th>Indicateur</th>
+        <th>Objectif</th>
+        <th>Résultat</th>
+        <th>Statut</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td>Débit (req/s)</td>
+          <td class="mono">&gt; 50 req/s</td>
+          <td class="mono"><b>71.1 req/s</b></td>
+          <td><span class="badge badge-ok">✓ Conforme</span></td>
+        </tr>
+        <tr>
+          <td>Latence P50</td>
+          <td class="mono">&lt; 200 ms</td>
+          <td class="mono"><b>22 ms</b></td>
+          <td><span class="badge badge-ok">✓ Conforme</span></td>
+        </tr>
+        <tr>
+          <td>Latence P90</td>
+          <td class="mono">&lt; 500 ms</td>
+          <td class="mono"><b>817 ms</b></td>
+          <td><span class="badge badge-err">✗ Dépassé</span></td>
+        </tr>
+        <tr>
+          <td>Latence P95</td>
+          <td class="mono">&lt; 800 ms</td>
+          <td class="mono"><b>2 220 ms</b></td>
+          <td><span class="badge badge-err">✗ Dépassé</span></td>
+        </tr>
+        <tr>
+          <td>Latence P99</td>
+          <td class="mono">&lt; 2 000 ms</td>
+          <td class="mono"><b>5 320 ms</b></td>
+          <td><span class="badge badge-err">✗ Dépassé</span></td>
+        </tr>
+        <tr>
+          <td>Taux d'erreur</td>
+          <td class="mono">&lt; 2 %</td>
+          <td class="mono"><b>3.74 %</b></td>
+          <td><span class="badge badge-err">✗ Dépassé</span></td>
+        </tr>
+        <tr>
+          <td>Disponibilité endpoints métier</td>
+          <td class="mono">≥ 99 %</td>
+          <td class="mono"><b>100 %</b></td>
+          <td><span class="badge badge-ok">✓ Conforme</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Endpoint breakdown ── -->
+  <div class="card" style="margin-top:20px">
+    <div class="card-title" style="margin-bottom:16px">Performance par endpoint (charge nominale)</div>
+
+    <div class="ep-row">
+      <div class="ep-name">📊 Dashboard (reporting)</div>
+      <span class="badge badge-ok">100%</span>
+      <div class="bar-wrap"><div class="bar-fill" style="width:3.3%;background:#4F46E5"></div></div>
+      <div class="ep-val">avg 27 ms</div>
+      <div class="ep-val">p95 74 ms</div>
+    </div>
+    <div class="ep-row">
+      <div class="ep-name">📋 Balance générale (reporting)</div>
+      <span class="badge badge-ok">100%</span>
+      <div class="bar-wrap"><div class="bar-fill" style="width:3.3%;background:#10B981"></div></div>
+      <div class="ep-val">avg 27 ms</div>
+      <div class="ep-val">p95 72 ms</div>
+    </div>
+    <div class="ep-row">
+      <div class="ep-name">📁 Plan de comptes</div>
+      <span class="badge badge-ok">100%</span>
+      <div class="bar-wrap"><div class="bar-fill" style="width:6%;background:#8B5CF6"></div></div>
+      <div class="ep-val">avg ~40 ms</div>
+      <div class="ep-val">p95 ~90 ms</div>
+    </div>
+    <div class="ep-row">
+      <div class="ep-name">✏️ Écritures comptables</div>
+      <span class="badge badge-ok">100%</span>
+      <div class="bar-wrap"><div class="bar-fill" style="width:47.6%;background:#F59E0B"></div></div>
+      <div class="ep-val">avg 729 ms</div>
+      <div class="ep-val" style="color:#DC2626">p95 3 820 ms</div>
+    </div>
+    <div class="ep-row">
+      <div class="ep-name">💓 Health check</div>
+      <span class="badge badge-err">54%</span>
+      <div class="bar-wrap"><div class="bar-fill" style="width:2%;background:#F43F5E"></div></div>
+      <div class="ep-val">avg ~5 ms</div>
+      <div class="ep-val" style="color:#DC2626">429 sous charge</div>
+    </div>
+  </div>
+
+  <!-- ── Analyse ── -->
+  <div class="card" style="margin-top:20px; border-left: 4px solid #4F46E5;">
+    <div class="card-title" style="margin-bottom:12px">Analyse et recommandations</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div>
+        <p style="font-size:0.85rem;font-weight:700;color:#166534;margin-bottom:8px">✅ Points forts</p>
+        <ul style="font-size:0.82rem;color:#374151;line-height:1.8;padding-left:16px">
+          <li>Débit élevé : <b>71 req/s</b> sur machine locale</li>
+          <li>Endpoints rapports : P50 <b>22 ms</b>, P95 <b>73 ms</b></li>
+          <li>Dashboard temps réel très réactif</li>
+          <li>Endpoints fonctionnels : <b>100% disponibilité</b></li>
+          <li>Rate limiting JWT fonctionne correctement</li>
+        </ul>
+      </div>
+      <div>
+        <p style="font-size:0.85rem;font-weight:700;color:#DC2626;margin-bottom:8px">⚠️ Axes d'amélioration</p>
+        <ul style="font-size:0.82rem;color:#374151;line-height:1.8;padding-left:16px">
+          <li><b>Goulot :</b> endpoint écritures sans filtre période (scan BDD complet)</li>
+          <li><b>Optimisation :</b> index composite sur <code>(entry_date, status)</code></li>
+          <li><b>Cache Redis :</b> résultats de listes d'écritures (TTL 30s)</li>
+          <li><b>Health check :</b> exclure du rate limiting JWT</li>
+          <li><b>Production :</b> déploiement multi-instance + load balancer</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Environnement ── -->
+  <div class="card" style="margin-top:20px">
+    <div class="card-title" style="margin-bottom:12px">Environnement de test</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;font-size:0.82rem">
+      <div>
+        <p style="color:#64748B;font-weight:600;margin-bottom:4px">Machine</p>
+        <p>HP Elitebook · Windows 11</p>
+        <p style="color:#94A3B8;font-size:0.75rem">Docker Compose Local</p>
+      </div>
+      <div>
+        <p style="color:#64748B;font-weight:600;margin-bottom:4px">Stack</p>
+        <p>FastAPI · PostgreSQL 16</p>
+        <p style="color:#94A3B8;font-size:0.75rem">Redis · Kafka 7.6.0</p>
+      </div>
+      <div>
+        <p style="color:#64748B;font-weight:600;margin-bottom:4px">Outil de test</p>
+        <p>k6 v2.0.0 · 100 VUs</p>
+        <p style="color:#94A3B8;font-size:0.75rem">Durée : 5 min · 30 utilisateurs</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Rapport généré le 13 juin 2026 · ADIGBONON Yoann · Master SSI · École PIGIER Bénin 2026<br>
+    CoreBanking — Système de comptabilité bancaire conforme BCEAO
+  </div>
+</div>
+
+<!-- ── Charts scripts ── -->
+<script>
+  // Latency chart
+  new Chart(document.getElementById('latencyChart'), {
+    type: 'bar',
+    data: {
+      labels: ['P50', 'P90', 'P95', 'P99'],
+      datasets: [
+        {
+          label: 'Endpoints rapports (ms)',
+          data: [10, 43, 73, 200],
+          backgroundColor: '#4F46E5CC',
+          borderRadius: 6,
+        },
+        {
+          label: 'Écritures comptables (ms)',
+          data: [118, 2500, 3820, 7000],
+          backgroundColor: '#F59E0BCC',
+          borderRadius: 6,
+        },
+        {
+          label: 'Global (ms)',
+          data: [22, 817, 2220, 5320],
+          backgroundColor: '#10B98180',
+          borderRadius: 6,
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw} ms` } }
+      },
+      scales: {
+        y: { grid: { color: '#F1F5F9' }, ticks: { callback: v => v + ' ms', font: { size: 10 } } },
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+
+  // Checks donut
+  new Chart(document.getElementById('checksChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Checks réussis (96.25%)', 'Checks échoués (3.74%)', 'Health check 429'],
+      datasets: [{
+        data: [21666, 0, 842],
+        backgroundColor: ['#10B981', '#F43F5E', '#F59E0B'],
+        borderWidth: 0,
+        hoverOffset: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      cutout: '70%',
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 14 } },
+        tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw.toLocaleString()}` } }
+      }
+    }
+  });
+</script>
+</body>
+</html>

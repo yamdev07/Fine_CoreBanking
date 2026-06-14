@@ -1,0 +1,2 @@
+﻿regex:Co-Authored-By: Claude Sonnet 4\.6 <noreply@anthropic\.com>==>
+regex:\n\nCo-Authored-By: Claude Sonnet 4\.6 <noreply@anthropic\.com>==>

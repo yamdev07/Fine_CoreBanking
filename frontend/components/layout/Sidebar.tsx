@@ -105,13 +105,13 @@ function NavLink({ item }: { item: NavItem }) {
     <Link
       href={item.href ?? "#"}
       className={cn(
-        "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150 mx-1 my-0.5",
+        "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150 mx-1 my-0.5 group",
         active
-          ? "bg-brand-600 text-white font-semibold shadow-sm shadow-brand-900/30"
-          : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+          ? "bg-gradient-to-r from-brand-600 to-brand-500 text-white font-semibold shadow-md shadow-brand-900/40 ring-1 ring-brand-400/20"
+          : "text-slate-400 hover:bg-slate-800/80 hover:text-slate-100"
       )}
     >
-      {Icon && <Icon className={cn("w-4 h-4 shrink-0", active ? "text-white" : "text-slate-500")} />}
+      {Icon && <Icon className={cn("w-4 h-4 shrink-0 transition-transform duration-150", active ? "text-white" : "text-slate-500 group-hover:text-slate-300", active && "scale-105")} />}
       <span className="truncate">{item.label}</span>
     </Link>
   );
@@ -123,16 +123,16 @@ export default function Sidebar() {
   const roleBadge = user ? ROLE_BADGE[user.role] : null;
 
   return (
-    <aside className="w-60 shrink-0 bg-slate-950 flex flex-col min-h-screen border-r border-slate-800">
+    <aside className="w-60 shrink-0 bg-slate-950 flex flex-col min-h-screen border-r border-slate-800/60">
       {/* Logo */}
-      <div className="px-4 py-5 border-b border-slate-800">
+      <div className="px-4 py-5 border-b border-slate-800/60 bg-gradient-to-b from-slate-900 to-slate-950">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-brand-600 rounded-xl flex items-center justify-center shadow-lg shadow-brand-900/40">
-            <Landmark className="w-5 h-5 text-white" />
+          <div className="w-9 h-9 bg-gradient-to-br from-brand-500 to-brand-700 rounded-xl flex items-center justify-center shadow-lg shadow-brand-900/50 ring-1 ring-brand-400/20">
+            <Landmark className="w-5 h-5 text-white drop-shadow-sm" />
           </div>
           <div>
             <p className="text-white font-bold text-sm leading-none tracking-tight">Core Banking</p>
-            <p className="text-slate-500 text-xs mt-0.5">Système comptable</p>
+            <p className="text-slate-500 text-xs mt-0.5 font-medium">Système comptable</p>
           </div>
         </div>
       </div>
@@ -150,10 +150,10 @@ export default function Sidebar() {
 
       {/* User footer */}
       {user && (
-        <div className="px-3 py-3 border-t border-slate-800">
-          <div className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-slate-800/60 transition-colors group">
-            <div className="w-8 h-8 rounded-lg bg-brand-600/20 border border-brand-500/30 flex items-center justify-center shrink-0">
-              <span className="text-brand-400 font-bold text-xs">
+        <div className="px-3 py-3 border-t border-slate-800/60 bg-gradient-to-b from-slate-950 to-slate-900">
+          <div className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-slate-800/50 transition-colors group">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-600/30 to-brand-800/30 border border-brand-500/20 flex items-center justify-center shrink-0 shadow-inner">
+              <span className="text-brand-300 font-bold text-xs">
                 {user.full_name.charAt(0).toUpperCase()}
               </span>
             </div>

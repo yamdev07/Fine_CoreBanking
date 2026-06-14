@@ -114,3 +114,7 @@ test-results/
 *.pyc
 *.pyo
 *.pyd
+
+# k6 test outputs (trop volumineux)
+k6/results_*.json
+k6/results_*.txt
