@@ -3,6 +3,7 @@
 All OTel imports are lazy so the service starts normally when OTEL_ENABLED=false
 even if opentelemetry-instrumentation is not installed.
 """
+
 from app.core.config import settings
 
 
@@ -19,11 +20,13 @@ def configure_tracing(app, sync_engine=None) -> None:
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-    resource = Resource.create({
-        SERVICE_NAME: settings.APP_NAME,
-        SERVICE_VERSION: settings.APP_VERSION,
-        "deployment.environment": settings.ENVIRONMENT,
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: settings.APP_NAME,
+            SERVICE_VERSION: settings.APP_VERSION,
+            "deployment.environment": settings.ENVIRONMENT,
+        }
+    )
     provider = TracerProvider(resource=resource)
     exporter = OTLPSpanExporter(endpoint=settings.OTEL_EXPORTER_OTLP_ENDPOINT, insecure=True)
     provider.add_span_processor(BatchSpanProcessor(exporter))

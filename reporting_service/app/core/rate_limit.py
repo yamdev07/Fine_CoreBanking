@@ -5,6 +5,7 @@ Key: JWT subject (sub claim) → rate limit scoped per user, not per IP.
 Limit: varies by role — ADMIN gets more headroom than AUDITOR.
 Falls back to IP for unauthenticated requests (login endpoint).
 """
+
 from fastapi import Request
 from jose import JWTError, jwt
 
@@ -39,8 +40,10 @@ def get_jwt_subject(request: Request) -> str:
     if payload and payload.get("sub"):
         return f"user:{payload['sub']}"
     forwarded = request.headers.get("x-forwarded-for", "")
-    ip = forwarded.split(",")[0].strip() if forwarded else (
-        request.client.host if request.client else "unknown"
+    ip = (
+        forwarded.split(",")[0].strip()
+        if forwarded
+        else (request.client.host if request.client else "unknown")
     )
     return f"ip:{ip}"
 

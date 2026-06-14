@@ -40,6 +40,7 @@ async def lifespan(app: FastAPI):
 
     # Distributed tracing
     from app.core.telemetry import configure_tracing
+
     configure_tracing(app)
 
     from app.services.kafka_consumer import run_cache_invalidation_consumer
@@ -54,6 +55,7 @@ async def lifespan(app: FastAPI):
     except asyncio.CancelledError:
         pass
     from app.core.redis_pool import close_redis_pool
+
     await close_redis_pool()
     await engine.dispose()
     logger.info("reporting_service.stopped")
