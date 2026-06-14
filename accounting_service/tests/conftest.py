@@ -6,7 +6,7 @@ import os
 import uuid
 from collections.abc import AsyncGenerator
 from datetime import UTC, date, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
@@ -234,19 +234,21 @@ async def api_client(engine):
 
     app.dependency_overrides[get_session] = _override_session
 
-    fake_redis = MagicMock()
-    fake_redis.setex = AsyncMock(return_value=True)
-    fake_redis.getdel = AsyncMock(return_value=None)
-    fake_redis.get = AsyncMock(return_value=None)
-    fake_redis.delete = AsyncMock(return_value=1)
-    fake_redis.ping = AsyncMock(return_value=True)
-
     try:
         with (
             patch("app.services.auth.seed_admin", new_callable=AsyncMock),
             patch("app.services.kafka_consumer.run_consumer", new_callable=AsyncMock),
             patch("app.services.kafka_producer._publish", new_callable=AsyncMock),
-            patch("app.core.redis_pool.get_redis", new_callable=AsyncMock, return_value=fake_redis),
+            patch(
+                "app.api.v1.auth.create_refresh_token",
+                new_callable=AsyncMock,
+                return_value="test-refresh-token",
+            ),
+            patch(
+                "app.api.v1.auth.rotate_refresh_token",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
         ):
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
