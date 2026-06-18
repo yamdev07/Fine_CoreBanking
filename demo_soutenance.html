@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CoreBanking — Script de soutenance</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #06101d;
+      color: #eef3f9;
+      padding: 32px 40px;
+      line-height: 1.6;
+    }
+
+    /* ── Header ── */
+    .header {
+      border-bottom: 1px solid rgba(77,163,255,0.3);
+      padding-bottom: 20px;
+      margin-bottom: 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .header h1 { font-size: 1.4rem; font-weight: 700; color: #4da3ff; }
+    .header p  { font-size: 0.8rem; color: #6b8cad; margin-top: 4px; }
+    .timer {
+      font-family: monospace;
+      font-size: 2rem;
+      font-weight: 700;
+      color: #3ddc97;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    /* ── Sections ── */
+    .section { margin-bottom: 28px; }
+    .section-title {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #4da3ff;
+      margin-bottom: 10px;
+    }
+
+    /* ── Credential chips ── */
+    .creds { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+    .cred {
+      background: rgba(77,163,255,0.1);
+      border: 1px solid rgba(77,163,255,0.35);
+      border-radius: 8px;
+      padding: 10px 16px;
+    }
+    .cred .role { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: #6b8cad; margin-bottom: 4px; }
+    .cred .val  { font-family: monospace; font-size: 1rem; color: #fff; font-weight: 600; }
+    .cred .val span { color: #4da3ff; }
+
+    /* ── Steps ── */
+    .steps { display: flex; flex-direction: column; gap: 14px; }
+    .step {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: grid;
+      grid-template-columns: 40px 1fr;
+      gap: 16px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .step:hover { background: rgba(255,255,255,0.06); }
+    .step.done {
+      background: rgba(61,220,151,0.05);
+      border-color: rgba(61,220,151,0.25);
+      opacity: 0.55;
+    }
+    .step.done .num { background: #3ddc97; color: #06101d; border-color: #3ddc97; }
+    .num {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: rgba(77,163,255,0.15);
+      border: 1px solid rgba(77,163,255,0.45);
+      display: flex; align-items: center; justify-content: center;
+      font-family: monospace; font-weight: 700; font-size: 0.95rem;
+      color: #4da3ff; flex-shrink: 0; margin-top: 2px;
+    }
+    .step-title {
+      font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 8px;
+    }
+    .step-action {
+      font-size: 0.82rem; color: #7a9abb;
+      background: rgba(0,0,0,0.25);
+      border-left: 3px solid rgba(77,163,255,0.4);
+      padding: 8px 12px;
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 12px;
+    }
+    .step-action code {
+      background: rgba(77,163,255,0.15);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-family: monospace;
+      font-size: 0.82rem;
+      color: #6fb6ff;
+    }
+
+    /* ── Speech blocks ── */
+    .speech { display: flex; flex-direction: column; gap: 8px; }
+    .speech-block { border-radius: 8px; padding: 10px 14px; font-size: 0.84rem; line-height: 1.65; }
+    .speech-label {
+      font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; margin-bottom: 5px;
+    }
+
+    /* INTRO — before acting */
+    .s-intro {
+      background: rgba(99,102,241,0.1);
+      border: 1px solid rgba(99,102,241,0.3);
+      color: #c4b5fd;
+    }
+    .s-intro .speech-label { color: #818cf8; }
+
+    /* PENDANT — while doing */
+    .s-pendant {
+      background: rgba(77,163,255,0.08);
+      border: 1px solid rgba(77,163,255,0.25);
+      color: #bdd6f0;
+    }
+    .s-pendant .speech-label { color: #4da3ff; }
+
+    /* RESULTAT — after the result appears */
+    .s-result {
+      background: rgba(61,220,151,0.07);
+      border: 1px solid rgba(61,220,151,0.25);
+      color: #9efdd3;
+    }
+    .s-result .speech-label { color: #3ddc97; }
+
+    .badge {
+      display: inline-block; font-family: monospace; font-size: 0.72rem;
+      font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-left: 6px;
+    }
+    .badge-err  { background: rgba(244,63,94,0.2); color: #fb7185; border: 1px solid rgba(244,63,94,0.4); }
+    .badge-ok   { background: rgba(61,220,151,0.15); color: #3ddc97; border: 1px solid rgba(61,220,151,0.35); }
+    .badge-warn { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.35); }
+
+    /* ── Checklist ── */
+    .checklist { display: flex; flex-direction: column; gap: 6px; }
+    .check-item {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 0.82rem; color: #a9bdd6;
+      cursor: pointer; padding: 6px 10px; border-radius: 6px;
+    }
+    .check-item:hover { background: rgba(255,255,255,0.04); }
+    .check-item input { accent-color: #3ddc97; width: 16px; height: 16px; }
+    .check-item.checked { color: #3ddc97; text-decoration: line-through; opacity: 0.6; }
+
+    .url-bar {
+      background: rgba(0,0,0,0.3); border: 1px solid rgba(77,163,255,0.25);
+      border-radius: 5px; padding: 2px 10px;
+      font-family: monospace; font-size: 0.82rem; color: #6fb6ff;
+      display: inline-block;
+    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    /* ── Questions jury ── */
+    .q-block {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 8px; padding: 14px 18px; margin-bottom: 10px;
+    }
+    .q-title { font-size: 0.85rem; font-weight: 700; color: #4da3ff; margin-bottom: 8px; }
+    .q-answer { font-size: 0.82rem; color: #a9bdd6; line-height: 1.7; }
+
+    /* ── Plan B ── */
+    .planb {
+      background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.3);
+      border-radius: 10px; padding: 14px 18px; font-size: 0.82rem; color: #e5d08c; line-height: 1.7;
+    }
+    .planb strong { color: #fbbf24; }
+
+    /* ── Clôture ── */
+    .cloture {
+      background: rgba(77,163,255,0.07); border: 1px solid rgba(77,163,255,0.28);
+      border-radius: 10px; padding: 18px 22px;
+      font-size: 1rem; color: #cdddf0; font-style: italic; line-height: 1.8;
+    }
+
+    .footer {
+      margin-top: 30px; padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      font-size: 0.7rem; color: #3a526a; text-align: center;
+    }
+    kbd {
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 4px; padding: 1px 6px; font-family: monospace; font-size: 0.75rem; color: #cdddf0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>CoreBanking — Script de Soutenance</h1>
+    <p>ADIGBONON Yoann · Master SSI · École PIGIER Bénin · 2026 · Dir. Dr ASSOGBA</p>
+  </div>
+  <div style="text-align:center">
+    <div class="timer" id="timer" title="Clique pour démarrer / pauser — R pour reset">00:00</div>
+    <div style="font-size:0.6rem;color:#3a526a;margin-top:3px;">Clique · R = reset · Orange=10min · Rouge=13min</div>
+  </div>
+</div>
+
+<!-- ── Checklist ── -->
+<div class="section">
+  <div class="section-title">✅ Checklist avant de commencer</div>
+  <div class="grid-2">
+    <div class="checklist">
+      <label class="check-item" onclick="toggle(this)"><input type="checkbox"> Docker Desktop lancé et vert</label>
+      <label class="check-item" onclick="toggle(this)"><input type="checkbox"> <code style="font-family:monospace;font-size:0.8rem;color:#6fb6ff;">docker compose up -d</code> exécuté sans erreur</label>
+      <label class="check-item" onclick="toggle(this)"><input type="checkbox"> <span class="url-bar">localhost:3000</span> s'affiche (frontend)</label>
+      <label class="check-item" onclick="toggle(this)"><input type="checkbox"> <span class="url-bar">localhost:8000/docs</span> répond (API)</label>
+    </div>
+    <div class="checklist">
+      <label class="check-item" onclick="toggle(this)"><input type="checkbox"> Compte auditeur créé (voir bas)</label>
+      <label class="check-item" onclick="toggle(this)"><input type="checkbox"> Résolution écran lisible pour le jury</label>
+      <label class="check-item" onclick="toggle(this)"><input type="checkbox"> Screenshots plan B prêts sur le bureau</label>
+      <label class="check-item" onclick="toggle(this)"><input type="checkbox"> Ce fichier ouvert dans un onglet séparé</label>
+    </div>
+  </div>
+</div>
+
+<!-- ── Comptes ── -->
+<div class="section">
+  <div class="section-title">🔑 Comptes à utiliser</div>
+  <div class="creds">
+    <div class="cred"><div class="role">Admin</div><div class="val">admin <span>/ Admin1234!</span></div></div>
+    <div class="cred"><div class="role">Comptable (démo principale)</div><div class="val">testuser01 <span>/ Test1234!</span></div></div>
+    <div class="cred"><div class="role">Auditeur (démo RBAC)</div><div class="val">auditeur <span>/ Audit1234!</span></div></div>
+  </div>
+  <div class="planb" style="font-size:0.78rem;">
+    <strong>Créer le compte auditeur si absent :</strong> Login admin → Gestion utilisateurs → Nouveau → username <code style="font-family:monospace;">auditeur</code>, rôle <code style="font-family:monospace;">AUDITOR</code>, password <code style="font-family:monospace;">Audit1234!</code>
+  </div>
+</div>
+
+<!-- ── Étapes ── -->
+<div class="section">
+  <div class="section-title">🎬 Les 8 étapes — clique pour marquer comme faite</div>
+  <div class="steps">
+
+    <!-- ÉTAPE 1 -->
+    <div class="step" onclick="markDone(this)">
+      <div class="num">1</div>
+      <div>
+        <div class="step-title">Connexion — Authentification JWT</div>
+        <div class="step-action">
+          Ouvrir <span class="url-bar">localhost:3000</span> →
+          Saisir <code>testuser01</code> / <code>Test1234!</code> → <kbd>Se connecter</kbd>
+        </div>
+        <div class="speech">
+          <div class="speech-block s-intro">
+            <div class="speech-label">🟣 Avant de cliquer — intro à dire au jury</div>
+            "Je vais commencer par ce qui est fondamental dans une architecture Zero Trust : l'identité. Ici, aucune confiance implicite — chaque utilisateur, chaque requête, doit prouver qui il est avant d'accéder à la moindre ressource. Je me connecte avec le compte d'un comptable."
+          </div>
+          <div class="speech-block s-pendant">
+            <div class="speech-label">🔵 Pendant la connexion</div>
+            "Je saisis le nom d'utilisateur et le mot de passe. Le mot de passe est haché en base avec bcrypt — même moi, en tant que développeur, je ne peux pas lire le mot de passe réel en base de données."
+          </div>
+          <div class="speech-block s-result">
+            <div class="speech-label">🟢 Quand le tableau de bord apparaît</div>
+            "La connexion a réussi. Ce que le système vient de faire en coulisse, c'est générer un token JWT — un JSON Web Token signé en HS256 avec une clé secrète. Ce token encode l'identité de l'utilisateur, son rôle ACCOUNTANT, et une date d'expiration de 30 minutes. À partir de maintenant, chaque requête vers l'API transporte ce token en en-tête. Le serveur n'a aucune session à maintenir — il vérifie uniquement la signature cryptographique à chaque appel. C'est l'architecture stateless qui permet la scalabilité horizontale tout en garantissant la sécurité."
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ÉTAPE 2 -->
+    <div class="step" onclick="markDone(this)">
+      <div class="num">2</div>
+      <div>
+        <div class="step-title">Écriture déséquilibrée → rejetée <span class="badge badge-err">422</span></div>
+        <div class="step-action">
+          Aller dans <strong>Écritures → Nouvelle écriture</strong><br>
+          Ligne 1 : Compte <code>571100</code>, Débit <code>100 000</code>, Crédit <code>0</code><br>
+          Ligne 2 : Compte <code>251100</code>, Débit <code>0</code>, Crédit <code>50 000</code><br>
+          → <kbd>Enregistrer</kbd> → erreur rouge
+        </div>
+        <div class="speech">
+          <div class="speech-block s-intro">
+            <div class="speech-label">🟣 Avant de saisir</div>
+            "Je vais maintenant vous montrer la première règle fondamentale de la comptabilité en partie double, qui est aussi la première ligne de défense contre la fraude et les erreurs : le principe d'équilibre. Je vais volontairement créer une écriture incorrecte pour voir comment le système réagit."
+          </div>
+          <div class="speech-block s-pendant">
+            <div class="speech-label">🔵 Pendant la saisie</div>
+            "Je crédite le compte 571100 — c'est la Caisse — de 100 000 francs CFA. Et je mets en face le compte 251100 — Crédits court terme — mais seulement 50 000 francs. Il me manque 50 000 francs. Ce type d'erreur, dans un système bancaire réel, pourrait signifier un détournement ou une simple faute de saisie — dans les deux cas, le système ne doit pas l'accepter."
+          </div>
+          <div class="speech-block s-result">
+            <div class="speech-label">🟢 Quand l'erreur s'affiche</div>
+            "Rejeté. La validation est double : d'abord Pydantic au niveau de l'API FastAPI vérifie que la somme des débits est strictement égale à la somme des crédits — c'est une validation métier. Ensuite, une contrainte CHECK en PostgreSQL empêche même une insertion directe en base si quelqu'un contournait l'API. Les comptes utilisés ici sont ceux du Plan Comptable des Établissements de Crédit — le PCEC de la BCEAO. Ce n'est pas un plan de comptes inventé : c'est le référentiel officiel des banques en zone UEMOA."
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ÉTAPE 3 -->
+    <div class="step" onclick="markDone(this)">
+      <div class="num">3</div>
+      <div>
+        <div class="step-title">Écriture équilibrée → acceptée <span class="badge badge-ok">DRAFT</span></div>
+        <div class="step-action">
+          Corriger Ligne 2 → Crédit <code>100 000</code> → <kbd>Enregistrer</kbd>
+        </div>
+        <div class="speech">
+          <div class="speech-block s-intro">
+            <div class="speech-label">🟣 Avant de corriger</div>
+            "Je corrige l'écriture — les deux lignes sont maintenant équilibrées. Débit 100 000, Crédit 100 000. Je soumets."
+          </div>
+          <div class="speech-block s-result">
+            <div class="speech-label">🟢 Quand DRAFT apparaît</div>
+            "L'écriture est créée avec le statut DRAFT — brouillon. Elle a un numéro de séquence unique, horodatée à la seconde. Elle existe dans le système, mais elle n'a pas encore d'impact sur les soldes des comptes, ni sur les états financiers. C'est le cycle de vie que j'ai implémenté : DRAFT → POSTED → REVERSED. Ce workflow à trois états permet à un comptable de préparer ses écritures, de les vérifier, puis de les valider en toute conscience. C'est une pratique recommandée par les référentiels SYSCOHADA."
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ÉTAPE 4 -->
+    <div class="step" onclick="markDone(this)">
+      <div class="num">4</div>
+      <div>
+        <div class="step-title">Validation → POSTED — le principe WORM commence <span class="badge badge-ok">POSTED</span></div>
+        <div class="step-action">
+          Sur l'écriture DRAFT → cliquer <kbd>Valider / Poster</kbd>
+        </div>
+        <div class="speech">
+          <div class="speech-block s-intro">
+            <div class="speech-label">🟣 Avant de valider</div>
+            "Maintenant je valide l'écriture. C'est l'action irréversible. Je veux attirer votre attention sur ce moment — parce que c'est là qu'un des principes de sécurité les plus importants de ce système entre en jeu."
+          </div>
+          <div class="speech-block s-pendant">
+            <div class="speech-label">🔵 En cliquant</div>
+            "Je clique sur Valider."
+          </div>
+          <div class="speech-block s-result">
+            <div class="speech-label">🟢 Quand le badge POSTED apparaît</div>
+            "L'écriture est maintenant POSTED. À cet instant, le principe WORM entre en vigueur — Write Once, Read Many. L'écriture peut être lue autant de fois qu'on veut, mais elle ne peut plus être modifiée, ni supprimée. Ce n'est pas un simple flag en base de données qu'on pourrait changer — chaque endpoint de l'API vérifie le statut avant toute opération d'écriture, et renvoie une erreur si l'écriture est déjà validée. C'est une réponse directe au threat STRIDE catégorie 'Tampering' — falsification des données comptables — qui est l'un des risques les plus graves dans un système bancaire."
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ÉTAPE 5 -->
+    <div class="step" onclick="markDone(this)">
+      <div class="num">5</div>
+      <div>
+        <div class="step-title">Tentative de modification → refusée <span class="badge badge-err">422</span></div>
+        <div class="step-action">
+          Sur la même écriture POSTED → cliquer <kbd>Valider</kbd> à nouveau OU tenter de modifier un champ
+        </div>
+        <div class="speech">
+          <div class="speech-block s-intro">
+            <div class="speech-label">🟣 Avant d'essayer</div>
+            "Je vais maintenant essayer de contourner ce principe. En tant que comptable connecté, je tente de revalider une écriture déjà postée, ou d'en modifier le contenu."
+          </div>
+          <div class="speech-block s-result">
+            <div class="speech-label">🟢 Quand l'erreur 422 apparaît</div>
+            "Erreur 422 — refusé. Et ce refus s'applique à tout le monde, y compris à un administrateur. Il n'existe aucun rôle dans ce système qui autorise la modification d'une écriture validée. C'est une décision d'architecture, pas une omission. Dans un contexte d'audit BCEAO, la piste d'audit doit être inaltérable — chaque transaction doit rester telle qu'elle a été enregistrée. C'est ce qu'on appelle la non-répudiation : personne ne peut nier avoir passé une écriture, et personne ne peut la modifier après coup."
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ÉTAPE 6 -->
+    <div class="step" onclick="markDone(this)">
+      <div class="num">6</div>
+      <div>
+        <div class="step-title">Login Auditeur → validation interdite <span class="badge badge-err">403 Forbidden</span></div>
+        <div class="step-action">
+          Se déconnecter → Login <code>auditeur</code> / <code>Audit1234!</code>
+          → Trouver une écriture DRAFT → tenter <kbd>Valider</kbd>
+        </div>
+        <div class="speech">
+          <div class="speech-block s-intro">
+            <div class="speech-label">🟣 Avant de se déconnecter</div>
+            "Je change maintenant d'utilisateur. Je vais me connecter en tant qu'auditeur — un rôle très courant dans les établissements financiers : quelqu'un qui doit avoir une vue complète sur toutes les opérations, mais qui ne doit absolument pas pouvoir en créer ou en valider. C'est le principe du moindre privilège."
+          </div>
+          <div class="speech-block s-pendant">
+            <div class="speech-label">🔵 Pendant la connexion auditeur</div>
+            "Je me connecte avec le compte auditeur. Son token JWT encode le rôle AUDITOR — différent du rôle ACCOUNTANT. Je navigue vers une écriture en statut DRAFT et je tente de la valider."
+          </div>
+          <div class="speech-block s-result">
+            <div class="speech-label">🟢 Quand le 403 s'affiche</div>
+            "403 Forbidden — accès refusé. Le serveur n'a même pas exécuté la logique métier — il a vérifié le rôle dans le token JWT et rejeté la requête immédiatement. Ce contrôle n'est pas dans le frontend : même en appelant l'API directement avec curl ou Postman, avec un token AUDITOR, la réponse est identique. C'est la défense en profondeur — le RBAC, contrôle d'accès basé sur les rôles, est implémenté au niveau du serveur, pas uniquement de l'interface. C'est la réponse au threat STRIDE catégorie 'Elevation of Privilege' — élévation de privilèges."
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ÉTAPE 7 -->
+    <div class="step" onclick="markDone(this)">
+      <div class="num">7</div>
+      <div>
+        <div class="step-title">Reporting — états financiers BCEAO en lecture seule</div>
+        <div class="step-action">
+          Naviguer vers <strong>Rapports → Balance générale</strong> → afficher<br>
+          Puis → <strong>Bilan</strong> → afficher
+        </div>
+        <div class="speech">
+          <div class="speech-block s-intro">
+            <div class="speech-label">🟣 Avant d'aller dans les rapports</div>
+            "Je vais maintenant vous montrer le deuxième service de cette architecture — le service de Reporting. C'est un microservice complètement séparé, qui tourne sur un port différent et qui n'a accès à la base de données qu'en lecture. Je voulais que cette isolation soit architecturale, pas juste une convention."
+          </div>
+          <div class="speech-block s-pendant">
+            <div class="speech-label">🔵 Pendant l'affichage des états</div>
+            "Voici la balance générale — elle reprend tous les comptes avec leurs soldes débiteurs et créditeurs. Et ici le bilan comptable, avec l'actif d'un côté et le passif de l'autre."
+          </div>
+          <div class="speech-block s-result">
+            <div class="speech-label">🟢 Quand les états s'affichent</div>
+            "Ces états sont produits conformément au PCIMF — Plan Comptable des Institutions de Microfinance — et au PCEC de la BCEAO. Ce ne sont pas des formats que j'ai inventés : ce sont les plans de comptes réglementaires applicables aux établissements financiers en zone UEMOA. Le service Reporting consomme les événements publiés par Kafka depuis le service Comptabilité — il ne fait jamais d'appel synchrone. En cas de panne du Reporting, la Comptabilité continue de fonctionner. C'est le couplage faible, un des principes clés de l'architecture microservices."
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ÉTAPE 8 -->
+    <div class="step" onclick="markDone(this)">
+      <div class="num">8</div>
+      <div>
+        <div class="step-title">Extourne — correction réglementaire SYSCOHADA <span class="badge badge-warn">REVERSED</span></div>
+        <div class="step-action">
+          Se reconnecter <code>testuser01</code> / <code>Test1234!</code>
+          → Sur l'écriture POSTED → cliquer <kbd>Extourner</kbd>
+        </div>
+        <div class="speech">
+          <div class="speech-block s-intro">
+            <div class="speech-label">🟣 Avant de cliquer Extourner</div>
+            "Je reviens en comptable. Je vais vous montrer la dernière fonctionnalité — et c'est celle qui illustre le mieux la contrainte réglementaire SYSCOHADA. J'ai une écriture POSTED qui contient une erreur. Je ne peux pas la modifier — on l'a vu. Alors comment la corriger ?"
+          </div>
+          <div class="speech-block s-pendant">
+            <div class="speech-label">🔵 En cliquant Extourner</div>
+            "En SYSCOHADA, la seule correction autorisée d'une écriture validée, c'est l'extourne. Je clique sur Extourner."
+          </div>
+          <div class="speech-block s-result">
+            <div class="speech-label">🟢 Quand les deux écritures apparaissent</div>
+            "Le système a créé automatiquement une écriture miroir — avec exactement les mêmes montants mais les débits et crédits inversés. L'écriture originale passe au statut REVERSED, et la nouvelle écriture est en DRAFT, prête à être corrigée. Les deux écritures sont liées entre elles dans la base — on peut toujours retrouver l'historique complet. L'effet net sur les soldes est nul : l'erreur est neutralisée sans qu'on ait jamais touché à une donnée existante. C'est la piste d'audit parfaite — traçabilité totale, immuabilité garantie, conformité BCEAO assurée."
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Phrase de clôture ── -->
+<div class="section">
+  <div class="section-title">🎤 Phrase de clôture — transition vers les questions</div>
+  <div class="cloture">
+    "Ce que vous venez de voir, c'est la traduction concrète des 14 slides que je viens de vous présenter. La sécurité dans ce système n'est pas une couche qu'on ajoute à la fin — elle est ancrée dans chaque décision d'architecture : le JWT pour l'identité, le RBAC pour les permissions, le WORM pour l'intégrité, Kafka pour le découplage, et les référentiels BCEAO pour la conformité réglementaire. Ce prototype est fonctionnel, testé — 128 tests automatisés — et il répond aux principales menaces identifiées dans le modèle STRIDE. Je me tiens à votre disposition pour répondre à vos questions."
+  </div>
+</div>
+
+<!-- ── Questions jury ── -->
+<div class="section">
+  <div class="section-title">❓ Questions probables du jury — réponses courtes</div>
+
+  <div class="q-block">
+    <div class="q-title">Pourquoi deux microservices et pas un seul ?</div>
+    <div class="q-answer">"La séparation n'est pas cosmétique — elle est sécuritaire. Le service Reporting n'a physiquement accès à la base qu'en lecture, via un rôle PostgreSQL distinct. Si ce service est compromis, un attaquant ne peut pas modifier des écritures. C'est le principe du moindre privilège appliqué à l'architecture : chaque composant n'a que les droits strictement nécessaires à sa fonction."</div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-title">La base de données est partagée — n'est-ce pas une faille ?</div>
+    <div class="q-answer">"C'est une limite que j'assume et que j'ai identifiée dans mon bilan. La solution idéale en microservices est une base par service, avec CDC — Change Data Capture — via Debezium ou similaire. Je l'ai mentionnée dans mes perspectives. Pour ce prototype, j'ai utilisé des rôles PostgreSQL différents pour restreindre les permissions, ce qui donne une isolation partielle acceptable dans un contexte académique."</div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-title">Comment garantissez-vous que personne ne modifie la base directement, en dehors de l'API ?</div>
+    <div class="q-answer">"C'est effectivement la limite d'un système sans HSM. J'ai mis en place trois niveaux : les contraintes CHECK et les triggers PostgreSQL qui rejettent les modifications d'écritures POSTED même en SQL direct ; les rôles PostgreSQL qui limitent qui peut exécuter des UPDATE/DELETE ; et la journalisation de toutes les connexions à la base. Dans un système en production, on ajouterait un module de surveillance des accès directs à la base — une SIEM — et on chiffrerait les données au repos."</div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-title">Pourquoi Kafka ? Une simple file de messages ne suffisait pas ?</div>
+    <div class="q-answer">"Kafka offre trois propriétés qu'une simple queue ne garantit pas : la persistance des messages sur disque, l'idempotence — on peut rejouer le même événement sans créer de doublon grâce au champ idempotency_key — et la capacité à rejouer l'historique complet si le service Reporting tombe et revient. C'est particulièrement important en comptabilité : on ne peut pas se permettre de perdre un événement, même si le consommateur est momentanément indisponible."</div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-title">Comment avez-vous validé que le système est sécurisé ?</div>
+    <div class="q-answer">"Sur plusieurs axes. D'abord les tests automatisés : 128 tests pytest couvrent les cas nominaux et les cas d'échec — chaque règle RBAC, chaque contrainte métier. Le CI GitHub Actions les exécute à chaque commit. Ensuite les tests de charge k6 : j'ai simulé 100 utilisateurs simultanés pendant 5 minutes et atteint 71 requêtes par seconde avec un taux d'erreur de 3,7%, dont la majorité sont des erreurs 422 intentionnelles des tests de validation. Et enfin l'analyse de menaces avec le modèle STRIDE qui a guidé mes choix d'architecture depuis le début."</div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-title">Quelle est la prochaine étape si ce système devait aller en production ?</div>
+    <div class="q-answer">"Trois chantiers prioritaires : premièrement, le passage à mTLS pour les communications inter-services — là, Kafka n'est pas chiffré entre services. Deuxièmement, la séparation des bases de données avec réplication unidirectionnelle vers le Reporting. Et troisièmement, une couche HSM pour la gestion des clés JWT — actuellement la clé est une variable d'environnement, ce qui est suffisant pour un prototype mais pas pour la production."</div>
+  </div>
+</div>
+
+<!-- ── Plan B ── -->
+<div class="section">
+  <div class="section-title">🚨 Plan B — si Docker ne démarre pas</div>
+  <div class="planb">
+    <strong>Option 1 — Swagger UI :</strong> Ouvrir <span class="url-bar">localhost:8000/docs</span> → dérouler les endpoints dans l'ordre : <code style="font-family:monospace;">/auth/login</code> → <code style="font-family:monospace;">/journal-entries/</code> → <code style="font-family:monospace;">/journal-entries/{id}/post</code>. Les boutons "Try it out" permettent de faire la démo directement dans le navigateur — c'est même plus impressionnant techniquement pour le jury.<br><br>
+    <strong>Option 2 — Captures d'écran :</strong> Screenshots numérotés 1 à 8 sur le bureau, affichés en plein écran dans l'ordre. Utiliser le même script de discours.<br><br>
+    <strong>Phrase d'intro plan B :</strong> <em>"Le système est en production sur ma machine de développement — je vais vous montrer l'interface API directement, ce qui nous permet de voir les requêtes et réponses HTTP en temps réel."</em>
+  </div>
+</div>
+
+<div class="footer">
+  CoreBanking · ADIGBONON Donan Maurel Yoann · Master SSI · Sous la direction du Dr ASSOGBA Emery · PIGIER Bénin 2026
+</div>
+
+<script>
+  // ── Timer ──
+  let seconds = 0, running = false, interval = null;
+  const timerEl = document.getElementById('timer');
+
+  timerEl.addEventListener('click', () => {
+    if (!running) {
+      running = true;
+      timerEl.style.color = '#fbbf24';
+      interval = setInterval(() => {
+        seconds++;
+        const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const s = String(seconds % 60).padStart(2, '0');
+        timerEl.textContent = m + ':' + s;
+        if (seconds >= 780) timerEl.style.color = '#ef4444';
+        else if (seconds >= 600) timerEl.style.color = '#f97316';
+      }, 1000);
+    } else {
+      running = false;
+      clearInterval(interval);
+      timerEl.style.color = '#3ddc97';
+    }
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'r' || e.key === 'R') {
+      clearInterval(interval); seconds = 0; running = false;
+      timerEl.textContent = '00:00';
+      timerEl.style.color = '#3ddc97';
+    }
+  });
+
+  // ── Steps ──
+  function markDone(el) { el.classList.toggle('done'); }
+
+  // ── Checklist ──
+  function toggle(label) {
+    const cb = label.querySelector('input');
+    setTimeout(() => {
+      if (cb.checked) label.classList.add('checked');
+      else label.classList.remove('checked');
+    }, 10);
+  }
+</script>
+</body>
+</html>
