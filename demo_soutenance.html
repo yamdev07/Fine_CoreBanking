@@ -355,18 +355,29 @@
     <div class="step" onclick="markDone(this)">
       <div class="num">5</div>
       <div>
-        <div class="step-title">Tentative de modification → refusée <span class="badge badge-err">422</span></div>
+        <div class="step-title">WORM — l'écriture validée est intouchable <span class="badge badge-err">422</span></div>
         <div class="step-action">
-          Sur la même écriture POSTED → cliquer <kbd>Valider</kbd> à nouveau OU tenter de modifier un champ
+          <strong>Phase 1 — dans l'interface :</strong> Regarder l'écriture Validée → constater que le bouton <kbd>Valider</kbd> a disparu, remplacé uniquement par <kbd>Extourner</kbd><br><br>
+          <strong>Phase 2 — prouver que c'est l'API qui bloque :</strong><br>
+          Ouvrir <span class="url-bar">localhost:8000/docs</span><br>
+          ① <code>POST /api/v1/auth/login</code> → Try it out → <code>testuser01</code> / <code>Test1234!</code> → Execute → copier <code>access_token</code><br>
+          ② Bouton <kbd>🔒 Authorize</kbd> en haut → coller le token → Authorize → Close<br>
+          ③ <code>GET /api/v1/journal-entries/</code> → Try it out → Execute → copier le champ <code>"id"</code> (UUID) d'une écriture <code>"status": "POSTED"</code><br>
+          ④ <code>POST /api/v1/journal-entries/{entry_id}/post</code> → Try it out → coller cet UUID → Execute<br>
+          → Réponse : <strong>422</strong> — "Écriture déjà validée / immuable"
         </div>
         <div class="speech">
           <div class="speech-block s-intro">
-            <div class="speech-label">🟣 Avant d'essayer</div>
-            "Je vais maintenant essayer de contourner ce principe. En tant que comptable connecté, je tente de revalider une écriture déjà postée, ou d'en modifier le contenu."
+            <div class="speech-label">🟣 En montrant l'interface</div>
+            "Regardez ce qui s'est passé dans l'interface : le bouton Valider a simplement disparu. Il n'est plus là. L'interface reflète l'état réel du système — une écriture validée ne peut plus être re-validée. Mais je veux aller plus loin et vous prouver que ce n'est pas juste un bouton caché dans le frontend. Je vais appeler l'API directement."
+          </div>
+          <div class="speech-block s-pendant">
+            <div class="speech-label">🔵 En ouvrant Swagger</div>
+            "Voici la documentation interactive de l'API — Swagger UI, générée automatiquement par FastAPI. N'importe qui avec accès réseau peut appeler ces endpoints directement, sans passer par l'interface. Je prends l'ID de l'écriture que je viens de valider, et je tente de la valider à nouveau via l'API brute."
           </div>
           <div class="speech-block s-result">
-            <div class="speech-label">🟢 Quand l'erreur 422 apparaît</div>
-            "Erreur 422 — refusé. Et ce refus s'applique à tout le monde, y compris à un administrateur. Il n'existe aucun rôle dans ce système qui autorise la modification d'une écriture validée. C'est une décision d'architecture, pas une omission. Dans un contexte d'audit BCEAO, la piste d'audit doit être inaltérable — chaque transaction doit rester telle qu'elle a été enregistrée. C'est ce qu'on appelle la non-répudiation : personne ne peut nier avoir passé une écriture, et personne ne peut la modifier après coup."
+            <div class="speech-label">🟢 Quand le 422 s'affiche dans Swagger</div>
+            "422 — refusé. Même en attaquant l'API directement, sans passer par l'interface, la réponse est identique. Ce refus n'est pas cosmétique — il vient d'une vérification dans le code métier côté serveur : si le statut de l'écriture est POSTED ou REVERSED, toute tentative de modification est immédiatement rejetée. C'est ce qu'on appelle la non-répudiation : personne ne peut nier avoir passé une écriture, et personne — ni l'utilisateur, ni un administrateur, ni un accès direct à l'API — ne peut la modifier après coup. C'est la réponse au threat STRIDE catégorie 'Tampering'."
           </div>
         </div>
       </div>
@@ -376,23 +387,28 @@
     <div class="step" onclick="markDone(this)">
       <div class="num">6</div>
       <div>
-        <div class="step-title">Login Auditeur → validation interdite <span class="badge badge-err">403 Forbidden</span></div>
+        <div class="step-title">Login Auditeur → RBAC en deux couches <span class="badge badge-err">403 Forbidden</span></div>
         <div class="step-action">
-          Se déconnecter → Login <code>auditeur</code> / <code>Audit1234!</code>
-          → Trouver une écriture DRAFT → tenter <kbd>Valider</kbd>
+          <strong>Phase 1 — UI :</strong> Se déconnecter → Login <code>auditeur</code> / <code>Audit1234!</code><br>
+          → Observer la sidebar : la section <strong>Comptabilité</strong> (Plan de comptes, Écritures...) a disparu<br>
+          → Seuls les <strong>Rapports</strong> sont accessibles<br><br>
+          <strong>Phase 2 — API :</strong> Dans <span class="url-bar">localhost:8000/docs</span> (déjà authentifié avec token AUDITOR)<br>
+          OU se connecter via <code>POST /auth/login</code> avec <code>auditeur</code> / <code>Audit1234!</code> → Authorize<br>
+          → <code>POST /api/v1/journal-entries/{entry_id}/post</code> → Execute<br>
+          → Réponse : <strong>403 Forbidden</strong> — "Droits insuffisants"
         </div>
         <div class="speech">
           <div class="speech-block s-intro">
-            <div class="speech-label">🟣 Avant de se déconnecter</div>
-            "Je change maintenant d'utilisateur. Je vais me connecter en tant qu'auditeur — un rôle très courant dans les établissements financiers : quelqu'un qui doit avoir une vue complète sur toutes les opérations, mais qui ne doit absolument pas pouvoir en créer ou en valider. C'est le principe du moindre privilège."
+            <div class="speech-label">🟣 Après connexion — en montrant la sidebar</div>
+            "Je me connecte maintenant avec le compte auditeur. Regardez la barre de navigation à gauche. La section Comptabilité — avec les écritures, le plan de comptes — a complètement disparu. L'auditeur ne voit que les Rapports. C'est le principe du moindre privilège : chaque utilisateur n'accède qu'à ce dont il a strictement besoin pour son rôle."
           </div>
           <div class="speech-block s-pendant">
-            <div class="speech-label">🔵 Pendant la connexion auditeur</div>
-            "Je me connecte avec le compte auditeur. Son token JWT encode le rôle AUDITOR — différent du rôle ACCOUNTANT. Je navigue vers une écriture en statut DRAFT et je tente de la valider."
+            <div class="speech-label">🔵 En naviguant dans les rapports</div>
+            "L'auditeur peut consulter tous les états financiers — la balance générale, le grand livre, le bilan, les ratios BCEAO. C'est sa mission : surveiller, contrôler, auditer. Mais il ne peut rien créer, rien valider, rien modifier."
           </div>
           <div class="speech-block s-result">
-            <div class="speech-label">🟢 Quand le 403 s'affiche</div>
-            "403 Forbidden — accès refusé. Le serveur n'a même pas exécuté la logique métier — il a vérifié le rôle dans le token JWT et rejeté la requête immédiatement. Ce contrôle n'est pas dans le frontend : même en appelant l'API directement avec curl ou Postman, avec un token AUDITOR, la réponse est identique. C'est la défense en profondeur — le RBAC, contrôle d'accès basé sur les rôles, est implémenté au niveau du serveur, pas uniquement de l'interface. C'est la réponse au threat STRIDE catégorie 'Elevation of Privilege' — élévation de privilèges."
+            <div class="speech-label">🟢 Après le 403 dans Swagger</div>
+            "Et pour prouver que ce n'est pas juste un menu caché — si quelqu'un connaît l'URL de l'API et tente d'appeler l'endpoint de validation avec un token AUDITOR, la réponse est 403 Forbidden. Le serveur vérifie le rôle dans le token JWT avant d'exécuter la moindre logique métier. C'est la défense en profondeur : deux couches indépendantes — l'interface qui cache, l'API qui refuse. Supprimer l'une ne compromet pas l'autre. C'est la réponse au threat STRIDE 'Elevation of Privilege'."
           </div>
         </div>
       </div>
@@ -436,15 +452,15 @@
         <div class="speech">
           <div class="speech-block s-intro">
             <div class="speech-label">🟣 Avant de cliquer Extourner</div>
-            "Je reviens en comptable. Je vais vous montrer la dernière fonctionnalité — et c'est celle qui illustre le mieux la contrainte réglementaire SYSCOHADA. J'ai une écriture POSTED qui contient une erreur. Je ne peux pas la modifier — on l'a vu. Alors comment la corriger ?"
+            "Je reviens en comptable. Je vais vous montrer la dernière fonctionnalité — et c'est celle qui illustre le mieux la contrainte réglementaire SYSCOHADA. J'ai une écriture validée qui contient une erreur. Je ne peux pas la modifier — on l'a vu à l'étape précédente. Alors, comment la corriger sans violer le principe d'immuabilité ?"
           </div>
           <div class="speech-block s-pendant">
             <div class="speech-label">🔵 En cliquant Extourner</div>
             "En SYSCOHADA, la seule correction autorisée d'une écriture validée, c'est l'extourne. Je clique sur Extourner."
           </div>
           <div class="speech-block s-result">
-            <div class="speech-label">🟢 Quand les deux écritures apparaissent</div>
-            "Le système a créé automatiquement une écriture miroir — avec exactement les mêmes montants mais les débits et crédits inversés. L'écriture originale passe au statut REVERSED, et la nouvelle écriture est en DRAFT, prête à être corrigée. Les deux écritures sont liées entre elles dans la base — on peut toujours retrouver l'historique complet. L'effet net sur les soldes est nul : l'erreur est neutralisée sans qu'on ait jamais touché à une donnée existante. C'est la piste d'audit parfaite — traçabilité totale, immuabilité garantie, conformité BCEAO assurée."
+            <div class="speech-label">🟢 Ce que tu vois à l'écran — l'originale passe en 'Extournée', une nouvelle EX apparaît en 'Validée'</div>
+            "Deux choses se passent simultanément. L'écriture originale change de badge : elle passe de 'Validée' à 'Extournée'. Et une nouvelle écriture apparaît dans la liste, préfixée EX, avec la description 'Extourne de...' suivie du numéro de l'originale — les deux sont donc explicitement liées. Cette écriture miroir est créée directement en statut Validée — le système la génère et la valide automatiquement, parce que c'est une opération technique réglementaire, pas une saisie manuelle. Les montants sont identiques mais débits et crédits sont inversés : l'effet net sur les soldes est exactement zéro. L'erreur est neutralisée, sans qu'on ait modifié un seul octet de l'écriture originale. C'est la piste d'audit parfaite : traçabilité totale, immuabilité garantie, conformité BCEAO assurée."
           </div>
         </div>
       </div>
